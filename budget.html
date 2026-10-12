@@ -1,0 +1,3256 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget &amp; Investeringar</title>
+<style>
+/* ---------------------------------------------------------------- tokens */
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --plane:     #f9f9f7;
+  --ink-1:     #0b0b0b;
+  --ink-2:     #52514e;
+  --ink-3:     #898781;
+  --grid:      #e1e0d9;
+  --axis:      #c3c2b7;
+  --border:    rgba(11,11,11,0.10);
+  --series-1:  #2a78d6;
+  --series-2:  #eb6834;
+  --series-3:  #1baf7a;
+  --good:      #006300;
+  --critical:  #d03b3b;
+  --warning:   #fab219;
+  --field:     #ffffff;
+  --radius: 10px;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane:     #0d0d0d;
+    --ink-1:     #ffffff;
+    --ink-2:     #c3c2b7;
+    --ink-3:     #898781;
+    --grid:      #2c2c2a;
+    --axis:      #383835;
+    --border:    rgba(255,255,255,0.10);
+    --series-1:  #3987e5;
+    --series-2:  #d95926;
+    --series-3:  #199e70;
+    --good:      #0ca30c;
+    --field:     #232322;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1: #1a1a19;
+  --plane:     #0d0d0d;
+  --ink-1:     #ffffff;
+  --ink-2:     #c3c2b7;
+  --ink-3:     #898781;
+  --grid:      #2c2c2a;
+  --axis:      #383835;
+  --border:    rgba(255,255,255,0.10);
+  --series-1:  #3987e5;
+  --series-2:  #d95926;
+  --series-3:  #199e70;
+  --good:      #0ca30c;
+  --field:     #232322;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--plane); color: var(--ink-1);
+  font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 14px; margin: 0 0 14px; font-weight: 600; }
+h3 { font-size: 12px; margin: 18px 0 8px; font-weight: 600; color: var(--ink-2);
+     text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* --------------------------------------------------------------- topbar */
+.topbar {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap;
+  gap: 8px; align-items: center; padding: 10px 18px;
+  background: var(--surface-1); border-bottom: 1px solid var(--border);
+}
+.topbar .spacer { flex: 1 1 auto; }
+
+button, select, input {
+  font: inherit; color: var(--ink-1); background: var(--field);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+}
+button { cursor: pointer; }
+button:hover { background: var(--plane); }
+button.primary { background: var(--series-1); color: #fff; border-color: transparent; }
+button.primary:hover { filter: brightness(1.08); }
+button.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+button.ghost:hover { background: var(--plane); color: var(--ink-1); }
+button.danger:hover { color: var(--critical); }
+input[type=number] { text-align: right; font-variant-numeric: tabular-nums; }
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--series-1); outline-offset: 1px;
+}
+label { color: var(--ink-2); }
+
+/* ------------------------------------------------------------ structure */
+.wrap { max-width: 1500px; margin: 0 auto; padding: 18px;
+        display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
+@media (max-width: 1080px) { .wrap { grid-template-columns: minmax(0,1fr); } }
+.col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.muted { color: var(--ink-3); font-size: 12px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.field { display: grid; grid-template-columns: 1fr 130px; gap: 8px;
+         align-items: center; margin-bottom: 8px; }
+.field.wide { grid-template-columns: 1fr 1fr; }
+.field input, .field select { width: 100%; }
+
+/* ------------------------------------------------------------- segments */
+.seg { display: inline-flex; background: var(--plane); border-radius: 8px;
+       padding: 2px; border: 1px solid var(--border); }
+.seg button { border: none; background: transparent; border-radius: 6px;
+              padding: 5px 12px; color: var(--ink-2); }
+.seg button[aria-pressed=true] { background: var(--surface-1); color: var(--ink-1);
+              box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600; }
+
+/* ----------------------------------------------------------- item lists */
+.items { display: flex; flex-direction: column; gap: 6px; }
+.item {
+  display: grid; grid-template-columns: 12px 1fr 108px 32px;
+  gap: 8px; align-items: center;
+}
+.item .swatch { width: 10px; height: 10px; border-radius: 3px; }
+.item input[type=text] { width: 100%; border-color: transparent; background: transparent; padding: 6px 4px; }
+.item input[type=text]:hover, .item input[type=text]:focus { border-color: var(--border); background: var(--field); }
+.item .pct { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+             text-align: right; padding-right: 2px; }
+.item-detail {
+  grid-column: 1 / -1; display: grid; gap: 8px;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  padding: 8px 0 12px 20px; border-bottom: 1px solid var(--grid); margin-bottom: 4px;
+}
+.item-detail label { display: block; font-size: 11px; margin-bottom: 3px; }
+.item-detail input, .item-detail select { width: 100%; }
+.item.item-row { grid-template-columns: 12px 1fr auto 108px 32px; }
+
+@media (max-width: 560px) {
+  .item-detail { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  /* På smal skärm får radnamnet gå före procenttalet – annars kapas
+     "Hyra/avgift" till "Hy". Andelen finns kvar i diagram och tabell.
+     Kolumnerna måste räknas om samtidigt, annars glider innehållet ett steg. */
+  .item.item-row { grid-template-columns: 12px 1fr 92px 30px; }
+  .item.item-row .pct { display: none; }
+  .item { grid-template-columns: 12px 1fr 92px 30px; }
+  .redir { grid-template-columns: minmax(0,1fr) 56px 30px; }
+  .redir-kr { display: none; }
+}
+
+.group-head { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 6px; }
+.group-head .dot { width: 8px; height: 8px; border-radius: 2px; }
+.group-head .name { font-size: 12px; font-weight: 600; text-transform: uppercase;
+                    letter-spacing: 0.06em; color: var(--ink-2); }
+.group-head .sum { margin-left: auto; font-variant-numeric: tabular-nums;
+                   color: var(--ink-2); font-size: 12px; }
+
+.total-row { display: flex; justify-content: space-between; align-items: baseline;
+             padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--axis);
+             font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ----------------------------------------------------------- stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; }
+.tile { padding: 12px; background: var(--plane); border-radius: 8px; }
+.tile .label { font-size: 11px; color: var(--ink-2); margin-bottom: 4px; }
+.tile .value { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.tile .sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.hero { font-size: 48px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+
+/* --------------------------------------------------------------- charts */
+figure { margin: 0; }
+figcaption { font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
+svg { display: block; width: 100%; overflow: visible; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 0; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.tick { font-size: 10px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* Etiketterna i flödesdiagrammet ligger ovanpå banden – en gloria i
+   ytfärgen håller dem läsbara utan att lägga till någon datafärg. */
+#chartSankey text { paint-order: stroke; stroke: var(--surface-1);
+  stroke-width: 3px; stroke-linejoin: round; }
+.barlabel { font-size: 11px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.barname { font-size: 11px; fill: var(--ink-2); }
+
+.tooltip {
+  position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+  transition: opacity .1s; background: var(--surface-1); color: var(--ink-1);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.16); min-width: 130px;
+}
+.tooltip .tt-title { font-weight: 600; margin-bottom: 5px; }
+.tooltip .tt-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.tooltip .tt-row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tooltip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 5px; }
+
+/* Breda tabeller ska rulla i sin egen ruta – aldrig kapas, och aldrig få hela
+   sidan att rulla i sidled. Märks framför allt på mobil. */
+#perRow, #compareTable, #futureBudget, #pensionBox,
+#tableGrowth, #tableExpense, #tableAccount { overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 10px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 600; }
+td { font-variant-numeric: tabular-nums; }
+details.tableview summary { cursor: pointer; font-size: 12px; color: var(--ink-2);
+  margin-top: 12px; list-style: none; }
+details.tableview summary::before { content: "▸ "; }
+details.tableview[open] summary::before { content: "▾ "; }
+
+.wrap-full { grid-template-columns: minmax(0,1fr); padding-top: 0; }
+.compare-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.compare-pick label { display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; background: var(--plane); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; color: var(--ink-1); }
+.compare-pick label:hover { border-color: var(--axis); }
+.compare-pick input { width: auto; margin: 0; }
+.compare-pick .key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.goal-grid { display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); }
+.goal-card { background: var(--plane); border: 1px solid var(--border);
+  border-radius: 8px; padding: 11px 12px 8px; min-width: 0; }
+.goal-head { display: flex; align-items: center; gap: 7px; font-size: 12px;
+  margin-bottom: 2px; }
+.goal-head .dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.goal-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-head .muted { margin-left: auto; font-size: 11px; flex: none; }
+.goal-status { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.goal-status .goal-hit { color: var(--good); }
+.goal-status .goal-miss { color: var(--critical); }
+.goal-foot { font-size: 11px; margin-top: 2px; }
+
+.redir { display: grid; grid-template-columns: minmax(0,1fr) 64px 88px 30px;
+  gap: 6px; align-items: center; margin-bottom: 5px; }
+.redir select, .redir input { width: 100%; }
+.redir button { padding: 4px 6px; }
+.redir-kr { font-size: 11px; color: var(--ink-3); text-align: right;
+  font-variant-numeric: tabular-nums; }
+
+.note { font-size: 12px; color: var(--ink-2); background: var(--plane);
+        border-left: 2px solid var(--axis); padding: 8px 12px; border-radius: 0 6px 6px 0;
+        margin-top: 12px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Budget &amp; Investeringar</h1>
+  <select id="countrySel" title="Land – styr valuta, skatt och socialavgifter"></select>
+  <select id="scenarioSel" title="Sparade budgetar"></select>
+  <button id="btnNew" class="ghost" title="Ny budget">+ Ny</button>
+  <button id="btnDup" class="ghost" title="Duplicera">Duplicera</button>
+  <button id="btnRen" class="ghost" title="Byt namn">Byt namn</button>
+  <button id="btnDel" class="ghost danger" title="Ta bort">Ta bort</button>
+  <span class="spacer"></span>
+  <button id="btnJson" class="ghost">Exportera JSON</button>
+  <button id="btnCsv" class="ghost">Exportera CSV</button>
+  <button id="btnImport" class="ghost">Importera</button>
+  <button id="btnTheme" class="ghost" title="Växla tema">◐</button>
+  <input type="file" id="fileInput" accept="application/json" class="hidden">
+</div>
+
+<div id="betaBanner" class="hidden" style="background:var(--warning);color:#0b0b0b;
+  padding:9px 18px;font-size:13px;line-height:1.45"></div>
+
+<div class="wrap">
+  <!-- ============================================ LEFT: input -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Inkomst</h2>
+      <div class="seg" role="group" aria-label="Inkomstläge">
+        <button id="modeNet"   aria-pressed="true">Nettolön</button>
+        <button id="modeGross" aria-pressed="false">Räkna från bruttolön</button>
+      </div>
+
+      <div id="netPane" style="margin-top:14px">
+        <div class="field"><label for="inNet">Nettolön (kr/mån)</label>
+          <input type="number" id="inNet" min="0" step="100"></div>
+      </div>
+
+      <div id="grossPane" class="hidden" style="margin-top:14px">
+        <div class="field"><label for="inGross">Bruttolön (kr/mån)</label>
+          <input type="number" id="inGross" min="0" step="100"></div>
+        <div class="field" id="kommunRow"><label for="inKommunSel">Kommun</label>
+          <select id="inKommunSel"></select></div>
+        <div class="field" id="kommunPctRow"><label for="inKommun">Kommunalskatt (%)
+          <span class="muted" id="kommunSrc"></span></label>
+          <input type="number" id="inKommun" min="0" max="40" step="0.01"></div>
+        <div class="field" id="churchMemberRow"><label for="inChurchMember">Medlem i Svenska kyrkan</label>
+          <input type="checkbox" id="inChurchMember" style="justify-self:start;width:auto"></div>
+        <div class="field" id="churchRow"><label for="inChurch">Kyrkoavgift (%)</label>
+          <input type="number" id="inChurch" min="0" max="3" step="0.01"></div>
+        <div class="field"><label for="inAge66">Fyllt 66 år vid årets ingång</label>
+          <input type="checkbox" id="inAge66" style="justify-self:start;width:auto"></div>
+        <div id="taxBreak" class="note"></div>
+      </div>
+
+      <h3>Övriga inkomster (netto)</h3>
+      <div class="items" id="incomeList"></div>
+      <button class="ghost" id="btnAddIncome" style="margin-top:8px">+ Lägg till inkomstrad</button>
+
+      <div class="total-row"><span>Total inkomst</span><span id="totIncome">–</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Utgifter, sparande &amp; investeringar</h2>
+      <p class="muted">Varje rad har en <b>typ</b>. Rader märkta <b>Sparande</b> eller
+        <b>Investering</b> flödar automatiskt in i investeringspanelen.</p>
+      <div id="expenseGroups"></div>
+      <div class="row" style="margin-top:14px;flex-wrap:wrap">
+        <button class="ghost" data-add="consumption">+ Utgift</button>
+        <button class="ghost" data-add="savings">+ Sparande</button>
+        <button class="ghost" data-add="investment">+ Investering</button>
+        <span class="spacer"></span>
+        <button class="ghost" id="btnResetRows">Återställ mallen</button>
+      </div>
+      <div class="total-row"><span>Totalt utflöde</span><span id="totOut">–</span></div>
+    </section>
+  </div>
+
+  <!-- ============================================ RIGHT: output -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Resultat</h2>
+      <div class="muted">Kvar att leva på varje månad</div>
+      <div class="hero" id="heroLeft">–</div>
+      <div class="muted" id="heroSub" style="margin-top:4px"></div>
+      <div class="tiles" style="margin-top:16px">
+        <div class="tile"><div class="label">Inkomst</div><div class="value" id="tIncome">–</div></div>
+        <div class="tile"><div class="label">Utgifter</div><div class="value" id="tCons">–</div></div>
+        <div class="tile"><div class="label">Sparande + investering</div><div class="value" id="tSave">–</div></div>
+        <div class="tile"><div class="label">Sparkvot</div><div class="value" id="tRate">–</div>
+             <div class="sub" id="tRateSub"></div></div>
+      </div>
+      <div class="row" style="margin-top:20px">
+        <div class="seg" role="group" aria-label="Diagramtyp">
+          <button id="vizBars" aria-pressed="true">Staplar</button>
+          <button id="vizFlow" aria-pressed="false">Flöde</button>
+        </div>
+      </div>
+      <figure style="margin-top:12px">
+        <figcaption id="vizCaption">Fördelning per rad, störst först</figcaption>
+        <svg id="chartExpense" role="img" aria-label="Stapeldiagram över budgetrader"></svg>
+        <svg id="chartSankey" class="hidden" role="img" aria-label="Flödesdiagram över inkomstens fördelning"></svg>
+        <div class="legend" id="legendExpense"></div>
+      </figure>
+      <details class="tableview"><summary>Visa som tabell</summary>
+        <div id="tableExpense"></div></details>
+    </section>
+
+    <section class="card">
+      <h2>Investeringar</h2>
+      <p class="muted">Bygger på sparande- och investeringsraderna. Varje rad har egen
+        förväntad avkastning, horisont och kontotyp.</p>
+
+      <div class="field wide"><label for="inHorizon">Visa prognos över (år)
+        <span class="muted" id="horizonSrc"></span>
+        <button id="btnAutoHorizon" class="ghost hidden"
+          style="padding:2px 6px;font-size:11px">Följ längsta spartiden</button></label>
+        <input type="number" id="inHorizon" min="1" max="60" step="1"></div>
+      <div class="field wide"><label for="inInflation">Inflation (%/år)</label>
+        <input type="number" id="inInflation" min="0" max="15" step="0.1"></div>
+      <div class="field wide"><label for="inWageOn">Räkna med löneökning</label>
+        <input type="checkbox" id="inWageOn" style="justify-self:start;width:auto"></div>
+      <div class="field wide"><label for="inWageGrowth">Löneökning (%/år, nominellt)
+        <span class="muted" id="wageReal"></span></label>
+        <input type="number" id="inWageGrowth" min="0" max="15" step="0.1"></div>
+      <div class="row" id="wagePresets" style="gap:6px;flex-wrap:wrap;margin:-2px 0 10px">
+        <button class="ghost" data-wage="3.3" style="font-size:11px;padding:3px 8px">Historiskt 3,3 %</button>
+        <button class="ghost" data-wage="2.8" style="font-size:11px;padding:3px 8px">Försiktigt 2,8 %</button>
+        <button class="ghost" data-wage="2.0" style="font-size:11px;padding:3px 8px">Pessimistiskt 2,0 %</button>
+      </div>
+      <div class="field wide"><label for="inReal">Visa i dagens penningvärde</label>
+        <input type="checkbox" id="inReal" style="justify-self:start;width:auto"></div>
+      <div class="field wide"><label for="inTax">Dra av svensk kapitalskatt</label>
+        <input type="checkbox" id="inTax" style="justify-self:start;width:auto"></div>
+
+      <div class="tiles" style="margin-top:16px">
+        <div class="tile"><div class="label">Insatt kapital</div><div class="value" id="iContrib">–</div></div>
+        <div class="tile"><div class="label">Avkastning</div><div class="value" id="iGrowth">–</div></div>
+        <div class="tile"><div class="label">Skatt</div><div class="value" id="iTax">–</div>
+             <div class="sub" id="iTaxSub"></div></div>
+        <div class="tile"><div class="label">Slutvärde</div><div class="value" id="iTotal">–</div>
+             <div class="sub" id="iTotalSub"></div></div>
+        <div class="tile"><div class="label">Varav likvida medel</div><div class="value" id="iCash">–</div>
+             <div class="sub">Sparkonto – inte investerat</div></div>
+        <div class="tile"><div class="label">Varav investerat</div><div class="value" id="iInvested">–</div>
+             <div class="sub">ISK, KF och depå</div></div>
+      </div>
+
+      <figure style="margin-top:20px">
+        <figcaption id="growthCaption">Insatt kapital och avkastning över tid</figcaption>
+        <svg id="chartGrowth" role="img" aria-label="Ytdiagram över portföljens utveckling"></svg>
+        <div class="legend" id="legendGrowth"></div>
+      </figure>
+      <details class="tableview"><summary>Visa som tabell</summary>
+        <div id="tableGrowth"></div></details>
+
+      <h3>Pension</h3>
+      <div class="field wide"><label for="inPensionOn">Räkna med pensionsavsättning</label>
+        <input type="checkbox" id="inPensionOn" style="justify-self:start;width:auto"></div>
+      <div id="pensionBox"></div>
+
+      <h3>Budgeten över tid</h3>
+      <div id="futureBudget"></div>
+      <div id="brytpunktNote" class="note hidden"></div>
+
+      <h3>Väg till målet, per rad</h3>
+      <p class="muted">Varje rads egen utveckling, inklusive pengar som styrs om hit
+        från andra rader. Rader med mål visas fram till att målet nås. Nominella belopp.</p>
+      <div id="goalCharts" class="goal-grid"></div>
+
+      <h3>Per rad</h3>
+      <div id="perRow"></div>
+      <div id="idleNote" class="note hidden"></div>
+
+      <h3>Kontotyp – slutvärde efter skatt</h3>
+      <figure>
+        <figcaption>Samma insättningar och avkastning, olika skatteregler</figcaption>
+        <svg id="chartAccount" role="img" aria-label="Jämförelse mellan kontotyper"></svg>
+      </figure>
+      <div id="tableAccount"></div>
+    </section>
+
+    <section class="card">
+      <h2 id="taxParamsTitle">Skatteparametrar 2026</h2>
+      <p class="muted">Alla konstanter är redigerbara – uppdatera dem när nya
+        siffror kommer, utan att röra koden.</p>
+      <div id="taxParams"></div>
+      <div class="note hidden" id="atBracketNote">Tarifstuforna (0 / 20 / 30 / 40 / 48 / 50 / 55 %)
+        ligger i koden som en tabell och går inte att ändra här.</div>
+      <div class="note" id="taxCheck"></div>
+    </section>
+  </div>
+</div>
+
+<div class="wrap wrap-full">
+  <section class="card">
+    <h2>Jämför scenarier</h2>
+    <p class="muted">Lägg flera sparade budgetar i samma diagram. Alla räknas om över
+      samma horisont och samma penningvärde, så att kurvorna faktiskt går att jämföra.
+      Max fyra åt gången.</p>
+    <div id="comparePick" class="compare-pick"></div>
+    <div id="compareHint" class="note hidden"></div>
+    <figure style="margin-top:16px">
+      <figcaption id="compareCaption"></figcaption>
+      <svg id="chartCompare" role="img" aria-label="Jämförelse av scenariers portföljvärde"></svg>
+      <div class="legend" id="legendCompare"></div>
+    </figure>
+    <div id="compareTable"></div>
+  </section>
+</div>
+
+<div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ====================================================================
+   1. Constants & tax model (Sweden, 2026)
+   ==================================================================== */
+
+// Kommunala skattesatser 2026 (total, kommun + region) — SCB tabell
+// "Kommunala skattesatser", hämtad 2026-07-31. [kod, namn, skattesats].
+const KOMMUNER = [
+  ["1440","Ale",32.8],["1489","Alingsås",32.84],["0764","Alvesta",33.42],["0604","Aneby",33.85],
+  ["1984","Arboga",33.29],["2506","Arjeplog",34.84],["2505","Arvidsjaur",34.14],["1784","Arvika",34.03],
+  ["1882","Askersund",34.15],["2084","Avesta",33.95],["1460","Bengtsfors",34.4],["2326","Berg",34.22],
+  ["2403","Bjurholm",35.0],["1260","Bjuv",32.17],["2582","Boden",33.94],["1443","Bollebygd",33.07],
+  ["2183","Bollnäs",33.37],["0885","Borgholm",33.44],["2081","Borlänge",34.4],["1490","Borås",32.79],
+  ["0127","Botkyrka",32.23],["0560","Boxholm",33.37],["1272","Bromölla",33.74],["2305","Bräcke",35.09],
+  ["1231","Burlöv",31.27],["1278","Båstad",31.41],["1438","Dals-Ed",34.69],["0162","Danderyd",30.58],
+  ["1862","Degerfors",35.3],["2425","Dorotea",35.65],["1730","Eda",34.55],["0125","Ekerö",31.45],
+  ["0686","Eksjö",34.02],["0862","Emmaboda",33.82],["0381","Enköping",33.05],["0484","Eskilstuna",32.85],
+  ["1285","Eslöv",31.72],["1445","Essunga",33.05],["1982","Fagersta",32.99],["1382","Falkenberg",32.5],
+  ["1499","Falköping",33.43],["2080","Falun",34.05],["1782","Filipstad",34.55],["0562","Finspång",33.7],
+  ["0482","Flen",33.1],["1763","Forshaga",34.63],["1439","Färgelanda",34.39],["2026","Gagnef",34.27],
+  ["0662","Gislaved",33.75],["0461","Gnesta",32.95],["0617","Gnosjö",34.0],["0980","Gotland",33.6],
+  ["1764","Grums",34.78],["1444","Grästorp",33.47],["1447","Gullspång",33.97],["2523","Gällivare",33.89],
+  ["2180","Gävle",33.77],["1480","Göteborg",32.6],["1471","Götene",33.6],["0643","Habo",33.93],
+  ["1783","Hagfors",34.3],["1861","Hallsberg",33.85],["1961","Hallstahammar",32.69],["1380","Halmstad",32.38],
+  ["1761","Hammarö",35.05],["0136","Haninge",31.28],["2583","Haparanda",33.84],["0331","Heby",34.21],
+  ["2083","Hedemora",34.15],["1283","Helsingborg",31.39],["1466","Herrljunga",33.62],["1497","Hjo",33.48],
+  ["2104","Hofors",34.37],["0126","Huddinge",31.71],["2184","Hudiksvall",33.12],["0860","Hultsfred",33.77],
+  ["1315","Hylte",33.85],["1863","Hällefors",34.35],["2361","Härjedalen",34.17],["2280","Härnösand",34.63],
+  ["1401","Härryda",31.98],["1293","Hässleholm",32.38],["0305","Håbo",33.3],["1284","Höganäs",30.91],
+  ["0821","Högsby",34.07],["1266","Hörby",32.26],["1267","Höör",32.63],["2510","Jokkmokk",34.29],
+  ["0123","Järfälla",31.52],["0680","Jönköping",33.4],["2514","Kalix",33.89],["0880","Kalmar",33.67],
+  ["1446","Karlsborg",32.8],["1082","Karlshamn",33.8],["1883","Karlskoga",34.3],["1080","Karlskrona",33.69],
+  ["1780","Karlstad",33.55],["0483","Katrineholm",32.95],["1715","Kil",34.63],["0513","Kinda",33.0],
+  ["2584","Kiruna",34.39],["1276","Klippan",31.93],["0330","Knivsta",32.62],["2282","Kramfors",34.43],
+  ["1290","Kristianstad",32.64],["1781","Kristinehamn",34.25],["2309","Krokom",33.87],["1881","Kumla",33.84],
+  ["1384","Kungsbacka",32.58],["1960","Kungsör",32.91],["1482","Kungälv",32.92],["1261","Kävlinge",29.59],
+  ["1983","Köping",33.04],["1381","Laholm",32.8],["1282","Landskrona",31.42],["1860","Laxå",35.0],
+  ["1814","Lekeberg",33.73],["2029","Leksand",33.8],["1441","Lerum",32.03],["0761","Lessebo",33.81],
+  ["0186","Lidingö",29.67],["1494","Lidköping",32.74],["1462","Lilla Edet",33.85],["1885","Lindesberg",34.6],
+  ["0580","Linköping",31.75],["0781","Ljungby",33.07],["2161","Ljusdal",33.87],["1864","Ljusnarsberg",33.8],
+  ["1262","Lomma",30.72],["2085","Ludvika",34.05],["2580","Luleå",33.84],["1281","Lund",32.42],
+  ["2481","Lycksele",34.9],["1484","Lysekil",33.94],["1280","Malmö",32.42],["2023","Malung-Sälen",34.45],
+  ["2418","Malå",35.2],["1493","Mariestad",32.74],["1463","Mark",32.99],["0767","Markaryd",33.31],
+  ["1461","Mellerud",34.08],["0586","Mjölby",33.45],["2062","Mora",34.32],["0583","Motala",33.25],
+  ["0642","Mullsjö",34.1],["1430","Munkedal",34.86],["1762","Munkfors",34.3],["1481","Mölndal",31.99],
+  ["0861","Mönsterås",34.07],["0840","Mörbylånga",34.07],["0182","Nacka",30.11],["1884","Nora",34.55],
+  ["1962","Norberg",33.54],["2132","Nordanstig",34.02],["2401","Nordmaling",35.1],["0581","Norrköping",33.3],
+  ["0188","Norrtälje",32.05],["2417","Norsjö",35.2],["0881","Nybro",34.19],["0140","Nykvarn",32.3],
+  ["0480","Nyköping",32.25],["0192","Nynäshamn",32.18],["0682","Nässjö",34.3],["2101","Ockelbo",34.27],
+  ["1060","Olofström",33.75],["2034","Orsa",34.3],["1421","Orust",33.69],["1273","Osby",33.99],
+  ["0882","Oskarshamn",34.21],["2121","Ovanåker",33.37],["0481","Oxelösund",33.05],["2521","Pajala",34.74],
+  ["1402","Partille",31.36],["1275","Perstorp",31.99],["2581","Piteå",33.59],["2303","Ragunda",34.92],
+  ["2409","Robertsfors",35.0],["1081","Ronneby",33.68],["2031","Rättvik",33.8],["1981","Sala",33.19],
+  ["0128","Salem",32.0],["2181","Sandviken",33.12],["0191","Sigtuna",31.83],["1291","Simrishamn",31.69],
+  ["1265","Sjöbo",32.1],["1495","Skara",33.38],["2482","Skellefteå",34.45],["1904","Skinnskatteberg",33.34],
+  ["1264","Skurup",31.6],["1496","Skövde",33.09],["2061","Smedjebacken",34.44],["2283","Sollefteå",34.68],
+  ["0163","Sollentuna",30.45],["0184","Solna",29.7],["2422","Sorsele",35.45],["1427","Sotenäs",33.47],
+  ["1230","Staffanstorp",30.12],["1415","Stenungsund",33.12],["0180","Stockholm",30.55],
+  ["1760","Storfors",34.98],["2421","Storuman",34.95],["0486","Strängnäs",32.5],["1486","Strömstad",33.39],
+  ["2313","Strömsund",34.92],["0183","Sundbyberg",31.58],["2281","Sundsvall",33.88],["1766","Sunne",33.75],
+  ["1907","Surahammar",33.19],["1214","Svalöv",31.92],["1263","Svedala",31.42],["1465","Svenljunga",33.53],
+  ["1785","Säffle",33.8],["2082","Säter",34.3],["0684","Sävsjö",33.68],["2182","Söderhamn",33.17],
+  ["0582","Söderköping",33.53],["0181","Södertälje",32.38],["1083","Sölvesborg",33.86],["1435","Tanum",33.04],
+  ["1472","Tibro",33.19],["1498","Tidaholm",33.55],["0360","Tierp",33.0],["2262","Timrå",34.38],
+  ["0763","Tingsryd",34.0],["1419","Tjörn",33.19],["1270","Tomelilla",31.79],["1737","Torsby",34.3],
+  ["0834","Torsås",33.79],["1452","Tranemo",32.98],["0687","Tranås",33.77],["1287","Trelleborg",31.58],
+  ["1488","Trollhättan",33.84],["0488","Trosa",32.03],["0138","Tyresö",31.83],["0160","Täby",29.88],
+  ["1473","Töreboda",33.2],["1485","Uddevalla",33.64],["1491","Ulricehamn",32.53],["2480","Umeå",34.65],
+  ["0114","Upplands Väsby",31.75],["0139","Upplands-Bro",31.73],["0380","Uppsala",32.85],
+  ["0760","Uppvidinge",33.8],["0584","Vadstena",34.35],["0665","Vaggeryd",33.25],
+  ["0563","Valdemarsvik",34.03],["0115","Vallentuna",31.23],["2021","Vansbro",34.28],["1470","Vara",33.25],
+  ["1383","Varberg",31.73],["0187","Vaxholm",31.63],["1233","Vellinge",29.68],["0685","Vetlanda",33.77],
+  ["2462","Vilhelmina",35.5],["0884","Vimmerby",34.22],["2404","Vindeln",35.2],["0428","Vingåker",33.5],
+  ["1487","Vänersborg",33.69],["2460","Vännäs",35.2],["0120","Värmdö",31.31],["0683","Värnamo",33.28],
+  ["0883","Västervik",33.02],["1980","Västerås",31.24],["0780","Växjö",32.19],["1442","Vårgårda",33.09],
+  ["0512","Ydre",34.1],["1286","Ystad",31.29],["0765","Älmhult",33.86],["2039","Älvdalen",34.77],
+  ["0319","Älvkarleby",34.4],["2560","Älvsbyn",33.79],["1292","Ängelholm",31.35],["1492","Åmål",33.94],
+  ["2260","Ånge",34.62],["2321","Åre",33.92],["1765","Årjäng",34.25],["2463","Åsele",35.45],
+  ["1277","Åstorp",31.47],["0561","Åtvidaberg",33.94],["1407","Öckerö",33.04],["0509","Ödeshög",33.95],
+  ["1880","Örebro",33.65],["1257","Örkelljunga",30.24],["2284","Örnsköldsvik",33.85],
+  ["2380","Östersund",33.72],["0117","Österåker",28.93],["0382","Östhammar",33.3],
+  ["1256","Östra Göinge",32.17],["2513","Överkalix",34.14],["2518","Övertorneå",33.84]
+];
+
+// Begravningsavgift och kyrkoavgift (exkl. begravningsavgift) per län, 2026.
+// Kyrkoavgiften varierar per församling — länssnittet är den praktiska upplösningen.
+const LAN_AVGIFTER = {
+  "01":[0.2,0.83],"03":[0.29,1.1],"04":[0.29,1.12],"05":[0.29,1.13],"06":[0.29,1.18],"07":[0.29,1.17],
+  "08":[0.29,1.26],"09":[0.29,1.61],"10":[0.29,1.05],"12":[0.29,1.05],"13":[0.29,1.18],
+  "14":[0.29,1.08],"17":[0.29,1.14],"18":[0.29,1.06],"19":[0.29,1.06],"20":[0.29,1.15],
+  "21":[0.29,1.07],"22":[0.29,1.42],"23":[0.29,1.4],"24":[0.29,1.1],"25":[0.29,1.0]
+};
+const RIKET_AVGIFTER = [0.26, 1.06];  // begravning, kyrkoavgift
+
+const DEFAULT_TAX = {
+  pbb:            59200,   // prisbasbelopp 2026
+  skiktgrans:     643000,  // statlig skatt tas ut över denna beskattningsbara inkomst
+  statligPct:     20,      // %
+  kommunKod:      "",      // "" = riksgenomsnitt, annars SCB:s kommunkod
+  kommun:         32.38,   // riksgenomsnitt 2026
+  church:         0,       // kyrkoavgift %, 0 = ej medlem
+  begravning:     0.26,    // begravningsavgift %, betalas av alla
+  jsaTaperFrom:   658700,  // jobbskatteavdraget trappas av över denna arbetsinkomst
+  jsaTaperPct:    3,       // % av överskjutande
+  slr:            2.55,    // statslåneränta 30 nov 2025 -> styr schablonskatten 2026
+  iskFribelopp:   300000,  // fribelopp ISK/KF/PEPP 2026, per person
+  kapitalskatt:   30,      // % på kapitalinkomst
+  fondSchablon:   0.4,     // % schablonintäkt på fonder i depå
+
+  // --- Framskrivning. Bara relevant när lönen växer nominellt.
+  // Prisbasbeloppet följer KPI. Skiktgränsen skrivs upp med KPI + 2
+  // procentenheter, vilket är varför brytpunkten historiskt sprungit ifrån
+  // lönerna i stället för tvärtom. Reglerna är politiskt justerbara och har
+  // frysts vid minst ett tillfälle – behandla 30 år fram som ett antagande.
+  skiktIndexBonus: 2,      // procentenheter över KPI
+  indexFribelopp:  0       // 1 = skriv upp ISK-fribeloppet med KPI, 0 = nominellt fast
+};
+
+/**
+ * Skattekonstanter framskrivna `years` år.
+ * Grundavdrag och jobbskatteavdrag följer med automatiskt eftersom båda
+ * räknas ur prisbasbeloppet.
+ */
+function indexedTax(T, years, inflation) {
+  if (!(years > 0)) return T;
+  const kpi   = Math.pow(1 + num(inflation) / 100, years);
+  const skikt = Math.pow(1 + (num(inflation) + num(T.skiktIndexBonus)) / 100, years);
+  return { ...T,
+    pbb:          num(T.pbb) * kpi,
+    skiktgrans:   num(T.skiktgrans) * skikt,
+    jsaTaperFrom: num(T.jsaTaperFrom) * skikt,
+    iskFribelopp: num(T.indexFribelopp) ? num(T.iskFribelopp) * kpi : num(T.iskFribelopp)
+  };
+}
+
+// Jobbskatteavdragets basbelopp, i enheter av prisbasbelopp.
+// Bracket 3 & 4 är kalibrerade mot Ekonomifaktas publicerade 2026-siffror
+// (38 800 kr/mån -> 4 278 kr/mån, 44 600 kr/mån -> 4 366 kr/mån).
+const JSA = { b3const: 1.8237, b3slope: 0.2483, b4const: 3.0254 };
+
+/** Grundavdrag för arbetsinkomst, under 66 år. */
+function grundavdrag(fi, pbb) {
+  const u = fi / pbb;
+  let ga;
+  if      (u < 0.99) ga = fi;
+  else if (u <= 2.72) ga = 0.423 * pbb + 0.20 * (fi - 0.99 * pbb);
+  else if (u <= 3.11) ga = 0.77 * pbb;
+  else if (u <= 7.88) ga = 0.77 * pbb - 0.10 * (fi - 3.11 * pbb);
+  else                ga = 0.293 * pbb;
+  return Math.round(ga / 100) * 100;
+}
+
+/** Förhöjt grundavdrag, 66+ år (förenklad interpolation mellan publicerade ytterpunkter). */
+function grundavdrag66(fi, pbb) {
+  const lo = 65800, max = 179100, min = 117500;
+  if (fi <= 0.99 * pbb) return Math.min(fi, lo);
+  if (fi <= 2.72 * pbb) return Math.round((lo + (max - lo) * (fi - 0.99 * pbb) / (1.73 * pbb)) / 100) * 100;
+  if (fi <= 7.88 * pbb) return Math.round((max - (max - min) * (fi - 2.72 * pbb) / (5.16 * pbb)) / 100) * 100;
+  return min;
+}
+
+/** Jobbskatteavdrag, under 66 år. */
+function jobbskatteavdrag(ai, ga, ks, T) {
+  const pbb = T.pbb;
+  let base;
+  if      (ai <= 0.91 * pbb) base = ai;
+  else if (ai <= 3.24 * pbb) base = 0.91 * pbb + 0.3405 * (ai - 0.91 * pbb);
+  else if (ai <= 8.08 * pbb) base = JSA.b3const * pbb + JSA.b3slope * (ai - 3.24 * pbb);
+  else                       base = JSA.b4const * pbb;
+  let jsa = Math.max(0, base - ga) * ks;
+  if (ai > T.jsaTaperFrom) jsa = Math.max(0, jsa - (T.jsaTaperPct / 100) * (ai - T.jsaTaperFrom));
+  return jsa;
+}
+
+/**
+ * Brutto -> netto per månad.
+ * Returnerar årsbelopp för varje delskatt plus månatligt netto.
+ */
+function grossToNetSE(monthlyGross, T, age66) {
+  const ai = monthlyGross * 12;
+  const ks = T.kommun / 100;
+  const ga = age66 ? grundavdrag66(ai, T.pbb) : grundavdrag(ai, T.pbb);
+  const bfi = Math.max(0, ai - ga);
+
+  const kommunal   = bfi * ks;
+  const church     = bfi * (T.church / 100);
+  const begravning = bfi * (T.begravning / 100);
+  const statlig    = Math.max(0, bfi - T.skiktgrans) * (T.statligPct / 100);
+  const jsa        = age66 ? 0 : jobbskatteavdrag(ai, ga, ks, T);
+
+  const tax = Math.max(0, kommunal + church + begravning + statlig - jsa);
+  return {
+    gross: monthlyGross, ai, ga, bfi,
+    kommunal, church, begravning, statlig, jsa, tax,
+    net: (ai - tax) / 12,
+    effective: ai > 0 ? tax / ai * 100 : 0
+  };
+}
+
+/* ====================================================================
+   Länder (BETA för Tyskland och Österrike)
+   ====================================================================
+
+   Den svenska motorn är kalibrerad mot publicerade referenspunkter och
+   kontrolleras löpande i "Modellkontroll" längst ned. De tyska och
+   österrikiska motorerna bygger på lagtext respektive publicerade
+   tarifftabeller för 2026, men är INTE avstämda mot ländernas egna
+   räknesnurror på samma sätt. Framför allt är följande förenklat:
+
+     Tyskland   – avdragsgilla Vorsorgeaufwendungen approximeras med hela
+                  socialavgiften; Steuerklasse antas vara 1; kyrkoskatt 9 %.
+     Österrike  – Absetzbeträge utöver Verkehrsabsetzbetrag är inte med;
+                  13:e och 14:e lönen antas rymmas inom Jahressechstel.
+
+   Alla konstanter går att ändra i Skatteparametrar.
+   ==================================================================== */
+
+const DEFAULT_TAX_DE = {
+  // §32a EStG, tariff 2026
+  grundfreibetrag: 12348,
+  z2end:  17799,
+  z3end:  69878,
+  z4end:  277825,
+  z2a:    914.51,          // (z2a·y + 1400)·y
+  z3a:    173.10,          // (z3a·z + 2397)·z + z3c
+  z3c:    1034.87,
+  z4rate: 42, z4sub: 11135.63,
+  z5rate: 45, z5sub: 19470.38,
+
+  // Sozialversicherung, arbetstagarens andel i procent
+  rv: 9.3,  rvBBG: 101400,     // pension
+  av: 1.3,  avBBG: 101400,     // arbetslöshet
+  kv: 8.75, kvBBG: 69750,      // sjukvård, inkl. halva Zusatzbeitrag
+  pv: 1.8,  pvBBG: 69750,      // vårdförsäkring
+
+  soli: 5.5, soliFreigrenze: 20350,
+  kirche: 0,                    // 9 om medlem
+  werbungskosten: 1230,
+  sonderausgaben: 36,
+
+  kapitalskatt: 25,             // Abgeltungsteuer
+  sparerPauschbetrag: 1000,
+  teilfreistellung: 30,         // aktiefonder: 30 % av vinsten skattefri
+  rvTotal: 18.6,                // hela pensionsavgiften, för pensionsjämförelsen
+
+  inflationIndex: 1             // 1 = skriv upp trösklarna med KPI
+};
+
+const DEFAULT_TAX_AT = {
+  // Tarifstufen 2026
+  brackets: [[13539, 0], [21992, 20], [36458, 30], [70365, 40],
+             [104859, 48], [1000000, 50], [Infinity, 55]],
+  sv: 18.07,          // arbetstagarens socialavgift, löpande lön
+  svSZ: 17.07,        // på 13:e/14:e lönen
+  hbgl: 6930,         // Höchstbeitragsgrundlage per månad
+  szFrei: 620,        // skattefritt på sonstige Bezüge
+  szRate: 6,          // därefter 6 %
+  verkehrsabsetz: 487,
+  kirche: 0,
+
+  kapitalskatt: 27.5,           // KESt
+  pvTotal: 22.8,                // hela pensionsavgiften, för pensionsjämförelsen
+
+  inflationIndex: 1
+};
+
+/** Svensk pension: allmän pension + tjänstepension enligt ITP1/SAF-LO-logik. */
+const SE_PENSION = {
+  allman: 18.5,        // % av pensionsgrundande inkomst
+  allmanTak: 7.5,      // inkomstbasbelopp
+  ibb: 83400,          // inkomstbasbelopp 2026
+  tjanstLag: 4.5,      // % under taket
+  tjanstHog: 30        // % över taket
+};
+
+const COUNTRIES = {
+  se: {
+    name: "Sverige", cur: "kr", k: "tkr", m: "Mkr", locale: "sv-SE",
+    salaries: 12, beta: false,
+    accounts: { cash: "Sparkonto", isk: "ISK", kf: "Kapitalförsäkring", af: "Aktie-/fonddepå" },
+    defaultAccount: "isk", defaultReturn: 7
+  },
+  de: {
+    name: "Tyskland", cur: "€", k: "t€", m: "M€", locale: "de-DE",
+    salaries: 12, beta: true,
+    accounts: { cash: "Tagesgeld", depot: "Depot (Abgeltungsteuer)" },
+    defaultAccount: "depot", defaultReturn: 7
+  },
+  at: {
+    name: "Österrike", cur: "€", k: "t€", m: "M€", locale: "de-AT",
+    salaries: 14, beta: true,
+    accounts: { cash: "Sparkonto", depot: "Depot (KESt)" },
+    defaultAccount: "depot", defaultReturn: 7
+  }
+};
+
+/* ------------------------------------------------------------ Tyskland */
+
+/** Inkomstskatt enligt §32a EStG. `zve` = zu versteuerndes Einkommen. */
+function estG32a(zve, T) {
+  const x = Math.floor(zve);
+  if (x <= T.grundfreibetrag) return 0;
+  if (x <= T.z2end) {
+    const y = (x - T.grundfreibetrag) / 10000;
+    return Math.floor((T.z2a * y + 1400) * y);
+  }
+  if (x <= T.z3end) {
+    const z = (x - T.z2end) / 10000;
+    return Math.floor((T.z3a * z + 2397) * z + T.z3c);
+  }
+  if (x <= T.z4end) return Math.floor((T.z4rate / 100) * x - T.z4sub);
+  return Math.floor((T.z5rate / 100) * x - T.z5sub);
+}
+
+function netDE(monthlyGross, T) {
+  const ai = monthlyGross * 12;
+  const cap = (rate, bbg) => Math.min(ai, bbg) * rate / 100;
+  const rv = cap(T.rv, T.rvBBG), av = cap(T.av, T.avBBG);
+  const kv = cap(T.kv, T.kvBBG), pv = cap(T.pv, T.pvBBG);
+  const social = rv + av + kv + pv;
+
+  // Förenkling: hela socialavgiften behandlas som avdragsgill.
+  const zve = Math.max(0, ai - T.werbungskosten - T.sonderausgaben - social);
+  const est = estG32a(zve, T);
+  const soli = est > T.soliFreigrenze ? est * T.soli / 100 : 0;
+  const kirche = est * num(T.kirche) / 100;
+  const tax = est + soli + kirche;
+
+  return { gross: monthlyGross, ai, social, tax, est, soli, kirche, statlig: 0,
+           net: (ai - social - tax) / 12,
+           effective: ai > 0 ? (social + tax) / ai * 100 : 0,
+           pension: Math.min(ai, T.rvBBG) * T.rvTotal / 100 };
+}
+
+/* ----------------------------------------------------------- Österrike */
+
+function estAT(base, T) {
+  let tax = 0, prev = 0;
+  for (const [top, rate] of T.brackets) {
+    if (base <= prev) break;
+    tax += (Math.min(base, top) - prev) * rate / 100;
+    prev = top;
+  }
+  return tax;
+}
+
+function netAT(monthlyGross, T) {
+  const hb = num(T.hbgl);
+  const laufend = monthlyGross * 12;
+  const sz = monthlyGross * 2;                       // 13:e och 14:e lönen
+  const ai = laufend + sz;
+
+  const svL = Math.min(monthlyGross, hb) * 12 * T.sv / 100;
+  const svS = Math.min(monthlyGross, hb) * 2 * T.svSZ / 100;
+  const social = svL + svS;
+
+  const baseL = Math.max(0, laufend - svL);
+  const estL = Math.max(0, estAT(baseL, T) - T.verkehrsabsetz);
+  const baseS = Math.max(0, sz - svS - T.szFrei);
+  const estS = baseS * T.szRate / 100;               // platt 6 %
+
+  const est = estL + estS;
+  const kirche = est * num(T.kirche) / 100;
+  const tax = est + kirche;
+
+  return { gross: monthlyGross, ai, social, tax, est, estL, estS, kirche, statlig: 0,
+           net: (ai - social - tax) / 12,
+           effective: ai > 0 ? (social + tax) / ai * 100 : 0,
+           sz, szNet: sz - svS - estS,
+           pension: Math.min(monthlyGross, hb) * 14 * T.pvTotal / 100 };
+}
+
+/* -------------------------------------------------------------- Sverige */
+
+/**
+ * Pensionsavsättning per år: allmän pension + tjänstepension.
+ *
+ * `ibbFactor` skriver upp inkomstbasbeloppet. Utan det växer lönen ifrån ett
+ * fastfruset tak, och tjänstepensionen skulle felaktigt hoppa upp till 30 %
+ * för nästan alla efter tjugo år.
+ */
+function pensionSE(monthlyGross, T, ibbFactor) {
+  const ai = monthlyGross * 12;
+  const tak = SE_PENSION.allmanTak * SE_PENSION.ibb * (ibbFactor || 1);
+  const allman = Math.min(ai, tak) * SE_PENSION.allman / 100;
+  const tjanst = Math.min(ai, tak) * SE_PENSION.tjanstLag / 100
+               + Math.max(0, ai - tak) * SE_PENSION.tjanstHog / 100;
+  return { allman, tjanst, total: allman + tjanst };
+}
+
+/* ------------------------------------------------------------ dispatch */
+
+/** Gemensam ingång. Landet läses ur T._c, som sätts när scenariot laddas. */
+function countryNet(monthlyGross, T, age66) {
+  if (T._c === "de") return netDE(monthlyGross, T);
+  if (T._c === "at") return netAT(monthlyGross, T);
+  return grossToNetSE(monthlyGross, T, age66);
+}
+
+/** Total pensionsavsättning per år, oavsett vem som formellt betalar. */
+function countryPension(monthlyGross, T, ibbFactor) {
+  if (T._c === "de") { const p = netDE(monthlyGross, T).pension;
+                       return { allman: p, tjanst: 0, total: p }; }
+  if (T._c === "at") { const p = netAT(monthlyGross, T).pension;
+                       return { allman: p, tjanst: 0, total: p }; }
+  return pensionSE(monthlyGross, T, ibbFactor);
+}
+
+function defaultTaxFor(code) {
+  if (code === "de") return { ...DEFAULT_TAX_DE, _c: "de" };
+  if (code === "at") return { ...DEFAULT_TAX_AT, _c: "at" };
+  return { ...DEFAULT_TAX, _c: "se" };
+}
+
+/** Skattekonstanter framskrivna `years` år, per land. */
+function indexedTaxCountry(T, years, inflation) {
+  if (!(years > 0)) return T;
+  if (T._c === "se") return indexedTax(T, years, inflation);
+  const kpi = Math.pow(1 + num(inflation) / 100, years);
+  if (!num(T.inflationIndex)) return T;
+  if (T._c === "de") {
+    return { ...T, grundfreibetrag: T.grundfreibetrag * kpi,
+      z2end: T.z2end * kpi, z3end: T.z3end * kpi, z4end: T.z4end * kpi,
+      z4sub: T.z4sub * kpi, z5sub: T.z5sub * kpi,
+      rvBBG: T.rvBBG * kpi, avBBG: T.avBBG * kpi,
+      kvBBG: T.kvBBG * kpi, pvBBG: T.pvBBG * kpi };
+  }
+  return { ...T, hbgl: T.hbgl * kpi,
+    brackets: T.brackets.map(([t, r]) => [t === Infinity ? t : t * kpi, r]) };
+}
+
+/**
+ * Vilken bruttolön ger ett visst netto? Numerisk invers av grossToNet.
+ *
+ * Behövs i nettoläge: utan en bruttolön går det inte att veta var på
+ * skatteskalan man står, och då kan en löneökning inte beskattas med
+ * marginalskatt.
+ */
+function netToGross(targetNet, T, age66) {
+  if (!(targetNet > 0)) return 0;
+  let lo = targetNet, hi = targetNet * 3 + 10000;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (countryNet(mid, T, age66).net < targetNet) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Inkomstbilden om `years` år: bruttolön uppräknad med löneökningen,
+ * skattekonstanterna framskrivna, och skatten omräknad.
+ *
+ * Poängen är att nettot INTE räknas upp rakt av. Höjningen läggs på bruttot
+ * och beskattas med marginalskatt, vilket är varför nettot växer långsammare
+ * än lönen så fort man närmar sig brytpunkten.
+ */
+function incomeAt(s, years) {
+  const iv = s.invest;
+  const wg = iv.wageGrowthOn === false ? 0 : num(iv.wageGrowth) / 100;
+  const f = Math.pow(1 + wg, years);
+  const T = indexedTaxCountry(s.tax, years, iv.inflation);
+
+  const gross0 = s.income.mode === "gross"
+    ? num(s.income.gross)
+    : netToGross(num(s.income.net), s.tax, s.income.age66);
+  const gross = gross0 * f;
+  const r = countryNet(gross, T, s.income.age66);
+  const extra = s.income.extra.reduce((a, x) =>
+    a + num(x.amount) * (x.grows === false ? 1 : f), 0);
+
+  return { gross0, gross, net: r.net, effective: r.effective, statlig: r.statlig,
+           extra, income: r.net + extra };
+}
+
+/* ====================================================================
+   2. State
+   ==================================================================== */
+
+const KINDS = {
+  consumption: { label: "Utgifter",     color: "var(--series-1)", raw: () => cssVar("--series-1") },
+  savings:     { label: "Sparande",     color: "var(--series-2)", raw: () => cssVar("--series-2") },
+  investment:  { label: "Investeringar",color: "var(--series-3)", raw: () => cssVar("--series-3") }
+};
+const KIND_ORDER = ["consumption", "savings", "investment"];
+
+// Sätts om av syncCountry() – varje land har sina egna kontotyper.
+let ACCOUNTS = COUNTRIES.se.accounts;
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+function template() {
+  const c = (label, amount) => ({ id: uid(), label, amount, kind: "consumption",
+    ret: 0, years: 0, start: 0, account: "cash", goal: 0, redirect: [], grows: true });
+  const sv = (label, amount, ret, years, account, goal) =>
+    ({ id: uid(), label, amount, kind: "savings", ret, years, start: 0, account,
+       goal: goal || 0, redirect: [], grows: true });
+  const inv = (label, amount, ret, years, account) =>
+    ({ id: uid(), label, amount, kind: "investment", ret, years, start: 0, account,
+       goal: 0, redirect: [], grows: true });
+
+  const buffert = sv("Buffert", 2000, 2.0, 30, "cash", 100000);
+  const semester = sv("Semesterspar", 1500, 1.5, 30, "cash", 0);
+  const index = inv("Indexfonder", 4000, 7.0, 30, "isk");
+  const pension = inv("Pension (privat)", 2000, 6.0, 30, "isk");
+
+  // När bufferten är full går pengarna vidare till indexfonderna i stället för
+  // att fortsätta ligga på ett sparkonto.
+  // Standardmallen visar upp delningen: 70 % vidare till indexfonderna,
+  // 30 % till pensionen.
+  buffert.redirect = [{ to: index.id, pct: 70 }, { to: pension.id, pct: 30 }];
+
+  // Amorteringar och räntor är fasta i kronor – de följer inte lönen, och
+  // krymper därför realt över tid. Därav grows: false.
+  const lan = c("Lån & krediter", 0);
+  lan.grows = false;
+
+  return [
+    c("Hyra/avgift", 7000), c("El & värme", 700), c("Försäkringar", 350),
+    c("Mat & varor", 3000), c("Transport", 1000), c("Telefon & internet", 500),
+    c("Kläder", 600), c("Gym & hälsa", 400), c("Hygien", 300), c("Nöje", 1000),
+    lan, c("Övrigt", 500),
+    buffert, semester, index, pension
+  ];
+}
+
+/** Mottagaren "raden själv" – låter en del av beloppet stanna kvar förbi målet. */
+const SELF = "__self";
+
+/**
+ * Mottagarlista i normaliserad form: [{to, pct}, …].
+ * Äldre budgetar sparade en enda sträng – den tolkas som 100 % till den raden.
+ */
+function normalizeRedirect(v) {
+  if (Array.isArray(v)) return v.filter(d => d && d.to);
+  if (typeof v === "string" && v) return [{ to: v, pct: 100 }];
+  return [];
+}
+
+const redirectSum = v =>
+  normalizeRedirect(v).reduce((a, d) => a + Math.max(0, num(d.pct)), 0);
+
+const round1 = n => Math.round(n * 10) / 10;
+
+/**
+ * Håller fördelningen på exakt 100 %.
+ *
+ * Den rad man just ändrade behåller sitt värde; övriga skalas om proportionellt
+ * så att summan blir 100. Är alla andra noll delas resten lika. Sista raden får
+ * avrundningsresten, annars kan summan bli 99,9 %.
+ */
+function rebalance(dests, changed) {
+  if (!dests.length) return dests;
+  if (dests.length === 1) { dests[0].pct = 100; return dests; }
+
+  dests[changed].pct = Math.max(0, Math.min(100, num(dests[changed].pct)));
+  const rest = 100 - dests[changed].pct;
+  const others = dests.map((d, j) => j).filter(j => j !== changed);
+  const sum = others.reduce((a, j) => a + Math.max(0, num(dests[j].pct)), 0);
+
+  others.forEach(j => {
+    dests[j].pct = round1(sum > 0
+      ? Math.max(0, num(dests[j].pct)) / sum * rest
+      : rest / others.length);
+  });
+
+  const last = others[others.length - 1];
+  const drift = 100 - dests.reduce((a, d) => a + num(d.pct), 0);
+  dests[last].pct = round1(Math.max(0, num(dests[last].pct) + drift));
+  return dests;
+}
+
+/** Fyller i fält som saknas i äldre sparade budgetar. */
+function migrateRow(r) {
+  if (r.goal === undefined) r.goal = 0;
+  if (r.redirect === undefined) r.redirect = [];
+  r.redirect = normalizeRedirect(r.redirect);
+  if (r.years === undefined || r.years === null) r.years = 30;
+  if (r.grows === undefined) r.grows = true;
+  return r;
+}
+
+function newScenario(name) {
+  return {
+    id: uid(), name, updated: Date.now(), country: "se", taxStore: {},
+    income: { mode: "net", net: 30000, gross: 42900, age66: false,
+              extra: [{ id: uid(), label: "Sidoinkomst", amount: 0, grows: true }] },
+    rows: template(),
+    viz: "bars",
+    invest: { horizon: 30, autoHorizon: true, inflation: 2.0, real: false, applyTax: true,
+              wageGrowthOn: true, wageGrowth: 3.3 },
+    pension: { on: true },
+    tax: defaultTaxFor("se")
+  };
+}
+
+/**
+ * Byter land på ett scenario. Skattekonstanterna för det gamla landet sparas
+ * undan, så att man kan växla fram och tillbaka utan att tappa egna ändringar.
+ * Kontotyper som inte finns i det nya landet mappas till närmaste motsvarighet.
+ */
+function switchCountry(s, code) {
+  if (s.country === code) return;
+  s.taxStore = s.taxStore || {};
+  s.taxStore[s.country] = s.tax;
+  s.country = code;
+  s.tax = s.taxStore[code] || defaultTaxFor(code);
+  s.tax._c = code;
+
+  const accs = COUNTRIES[code].accounts;
+  const fallback = COUNTRIES[code].defaultAccount;
+  s.rows.forEach(r => {
+    if (r.kind === "consumption") { r.account = "cash"; return; }
+    if (!(r.account in accs)) r.account = r.account === "cash" ? "cash" : fallback;
+  });
+  syncCountry(s);
+}
+
+const STORE_KEY = "budget-app-v1";
+let store = load();
+let openRow = null;   // id of row whose detail panel is expanded
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.scenarios && Object.keys(s.scenarios).length) {
+        Object.values(s.scenarios).forEach(sc => {
+          (sc.rows || []).forEach(migrateRow);
+          if (!sc.country) sc.country = "se";
+          if (!sc.taxStore) sc.taxStore = {};
+          if (!sc.pension) sc.pension = { on: true };
+          sc.tax = { ...defaultTaxFor(sc.country), ...(sc.tax || {}), _c: sc.country };
+        });
+        return s;
+      }
+    }
+  } catch (e) { console.warn("Kunde inte läsa sparad data:", e); }
+  const sc = newScenario("Min budget");
+  return { version: 1, activeId: sc.id, scenarios: { [sc.id]: sc } };
+}
+let storageBroken = false;
+function save() {
+  cur().updated = Date.now();
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    if (storageBroken) { storageBroken = false; renderStorageWarning(); }
+  } catch (e) {
+    console.warn("Kunde inte spara:", e);
+    if (!storageBroken) { storageBroken = true; renderStorageWarning(); }
+  }
+}
+
+/**
+ * localStorage är opålitligt när sidan öppnas direkt från disk (file://),
+ * särskilt i Safari. Säg till i stället för att tyst tappa sparade budgetar.
+ */
+function renderStorageWarning() {
+  let el = $("storageWarn");
+  if (!storageBroken) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "storageWarn";
+  el.style.cssText = "background:var(--warning);color:#0b0b0b;padding:8px 18px;" +
+                     "font-size:13px;position:sticky;top:0;z-index:30";
+  el.innerHTML = "<b>Budgeten sparas inte automatiskt</b> – webbläsaren blockerar lagring " +
+                 "för filer som öppnas direkt från disk. Använd <b>Exportera JSON</b> för att " +
+                 "spara, och <b>Importera</b> för att läsa in igen. Kör sidan via en lokal " +
+                 "server om du vill ha autospar.";
+  document.body.insertBefore(el, document.body.firstChild);
+}
+const cur = () => store.scenarios[store.activeId];
+
+/* ====================================================================
+   3. Calculations
+   ==================================================================== */
+
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Valutan följer scenariots land. Sätts av syncCountry() vid varje omritning,
+// så att allt som formateras hamnar i rätt valuta utan att varje anropsplats
+// behöver veta vilket land som är aktivt.
+let CUR = COUNTRIES.se;
+const fmt  = n => Math.round(n).toLocaleString(CUR.locale) + " " + CUR.cur;
+const fmtK = n => Math.abs(n) >= 1e6 ? (n / 1e6).toLocaleString(CUR.locale, { maximumFractionDigits: 1 }) + " " + CUR.m
+                : Math.abs(n) >= 1e4 ? Math.round(n / 1e3).toLocaleString(CUR.locale) + " " + CUR.k
+                : Math.round(n).toLocaleString(CUR.locale) + " " + CUR.cur;
+const pct  = n => n.toLocaleString("sv-SE", { maximumFractionDigits: 1 }) + " %";
+
+/** Läser landet ur scenariot och sätter valuta + kontotyper. */
+function syncCountry(s) {
+  if (!s.country) s.country = "se";
+  if (!s.tax._c) s.tax._c = s.country;
+  CUR = COUNTRIES[s.country] || COUNTRIES.se;
+  ACCOUNTS = CUR.accounts;
+  return CUR;
+}
+
+function incomeTotal(s) {
+  const base = s.income.mode === "gross"
+    ? countryNet(num(s.income.gross), s.tax, s.income.age66).net
+    : num(s.income.net);
+  return base + s.income.extra.reduce((a, r) => a + num(r.amount), 0);
+}
+
+function num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+
+function summary(s) {
+  const income = incomeTotal(s);
+  const by = { consumption: 0, savings: 0, investment: 0 };
+  s.rows.forEach(r => { by[r.kind] = (by[r.kind] || 0) + num(r.amount); });
+  const out = by.consumption + by.savings + by.investment;
+  const saved = by.savings + by.investment;
+  return { income, ...by, out, saved, left: income - out,
+           rate: income > 0 ? saved / income * 100 : 0 };
+}
+
+/**
+ * Projicerar EN rad isolerat. Används bara av kontotypsjämförelsen, där
+ * poängen är att köra samma insättningar genom tre olika skatteregler.
+ */
+function projectOne(row, months, T, applyTax, fribelopp) {
+  const rm = Math.pow(1 + num(row.ret) / 100, 1 / 12) - 1;
+  const schablonRate = Math.max(1.25, num(T.slr) + 1) / 100;
+  const capTax = num(T.kapitalskatt) / 100;
+
+  let value = num(row.start), contrib = value, tax = 0;
+  let yearStart = value, yearDeposits = 0;
+
+  for (let m = 1; m <= months; m++) {
+    value = value * (1 + rm) + num(row.amount);
+    contrib += num(row.amount);
+    yearDeposits += num(row.amount);
+
+    if (m % 12 === 0 && applyTax) {
+      const und = Math.max(0, (yearStart + value) / 2 + yearDeposits * 0.5);
+      let t = 0;
+      if (row.account === "isk" || row.account === "kf")
+        t = Math.max(0, und - fribelopp) * schablonRate * capTax;
+      else if (row.account === "af") t = und * (num(T.fondSchablon) / 100) * capTax;
+      else if (row.account === "cash") t = Math.max(0, value - yearStart - yearDeposits) * capTax;
+      value -= t; tax += t;
+      yearStart = value; yearDeposits = 0;
+    }
+  }
+  if (applyTax && (row.account === "af" || row.account === "depot")) {
+    const gain = Math.max(0, value - contrib);
+    const t = row.account === "depot" && T._c === "de"
+      ? Math.max(0, gain * (1 - num(T.teilfreistellung) / 100) - num(T.sparerPauschbetrag))
+        * capTax * (1 + num(T.soli) / 100)
+      : gain * capTax;
+    value -= t; tax += t;
+  }
+  return { value, contrib, tax, growth: value - contrib };
+}
+
+/**
+ * Simulerar alla sparande- och investeringsrader tillsammans, månad för månad.
+ *
+ * Raderna måste köras i samma loop eftersom de påverkar varandra: när en rad
+ * når sitt mål (t.ex. "buffert = 100 000 kr") kan dess månadsbelopp styras om
+ * till en annan rad. Det gör också att fribeloppet för ISK/KF kan fördelas
+ * korrekt över det faktiska sammanlagda kapitalunderlaget varje år, i stället
+ * för att uppskattas per rad.
+ */
+/**
+ * Hur många år prognosen ska visa.
+ *
+ * Som standard följer den den längsta spartiden bland raderna – annars kapas
+ * kurvan mitt i en pågående investering. Har man skrivit in ett eget antal år
+ * (autoHorizon === false) gäller det i stället.
+ */
+function resolveHorizon(sc) {
+  const stored = Math.round(num(sc.invest.horizon));
+  if (sc.invest.autoHorizon === false) return Math.max(1, stored || 20);
+  const longest = sc.rows
+    .filter(r => r.kind !== "consumption" && (num(r.amount) > 0 || num(r.start) > 0))
+    .reduce((a, r) => Math.max(a, Math.round(num(r.years))), 0);
+  return Math.max(1, longest || stored || 20);
+}
+
+function projectAll(s) {
+  const T = s.tax, iv = s.invest;
+  const months = Math.max(1, Math.round(num(iv.horizon) * 12));
+  const applyTax = !!iv.applyTax;
+  const schablonRate = Math.max(1.25, num(T.slr) + 1) / 100;
+  const capTax = num(T.kapitalskatt) / 100;
+
+  const rows = s.rows.filter(r => r.kind !== "consumption" && (num(r.amount) > 0 || num(r.start) > 0));
+
+  // Raderna skalas med inkomsten EFTER skatt, inte med bruttolönen. En höjning
+  // på 3,3 % ger mindre än 3,3 % mer att spara så fort marginalskatten stiger,
+  // och sparandet får inte växa fortare än pengarna som ska finansiera det.
+  const wgOff = iv.wageGrowthOn === false || !(num(iv.wageGrowth) > 0);
+  const facs = [1];
+  if (!wgOff) {
+    const base = incomeAt(s, 0).income;
+    for (let y = 1; y <= Math.ceil(months / 12); y++)
+      facs.push(base > 0 ? incomeAt(s, y).income / base : 1);
+  }
+  const grown = (row, m) => num(row.amount) *
+    (row.grows === false || wgOff ? 1 : (facs[Math.floor((m - 1) / 12)] ?? 1));
+
+  const st = rows.map(r => ({
+    row: r,
+    value: num(r.start), contrib: num(r.start), tax: 0,
+    yearStart: num(r.start), yearDeposits: 0,
+    rm: Math.pow(1 + num(r.ret) / 100, 1 / 12) - 1,
+    stopMonth: num(r.years) > 0 ? Math.round(num(r.years) * 12) : months,
+    goal: Math.max(0, num(r.goal)),
+    goalMonth: null,
+    series: [{ m: 0, value: num(r.start), contrib: num(r.start), tax: 0 }]
+  }));
+  const idx = {};
+  st.forEach((x, i) => { idx[x.row.id] = i; });
+
+  /** Tar raden fortfarande emot pengar denna månad? */
+  const accepts = (x, m) =>
+    m <= x.stopMonth && (x.goal <= 0 || x.value < x.goal - 0.5);
+
+  /**
+   * Fördelar ett belopp till rad `i` och vidare nedåt i kedjan.
+   *
+   * Raden tar först vad den själv kan (upp till sitt mål). Det som blir över
+   * delas ut på dess mottagare enligt deras procentsatser, rekursivt – en
+   * mottagare som också är full skickar vidare till sina egna mottagare.
+   * Returnerar det som inte hittade någonstans att ta vägen.
+   */
+  function distribute(i, amt, m, inflow, seen) {
+    if (!(amt > 0)) return 0;
+    const x = st[i];
+
+    if (accepts(x, m)) {
+      let take = amt;
+      if (x.goal > 0) take = Math.min(amt, Math.max(0, x.goal - x.value - inflow[i]));
+      inflow[i] += take;
+      amt -= take;
+    }
+    if (!(amt > 0)) return 0;
+    if (seen.has(i)) return amt;              // cykelskydd
+    const path = new Set(seen); path.add(i);
+
+    const dests = normalizeRedirect(x.row.redirect);
+    const total = redirectSum(x.row.redirect);
+    if (!dests.length || total <= 0) return amt;
+
+    // Summerar procenten till mindre än 100 blir resten oallokerad.
+    let leftover = amt * Math.max(0, 100 - total) / 100;
+    dests.forEach(d => {
+      const share = amt * Math.max(0, num(d.pct)) / 100;
+      if (d.to === SELF) { inflow[i] += share; return; }  // stannar kvar, förbi målet
+      if (!(d.to in idx)) { leftover += share; return; }
+      leftover += distribute(idx[d.to], share, m, inflow, path);
+    });
+    return leftover;
+  }
+
+  let lastExemptShare = 0;
+
+  for (let m = 1; m <= months; m++) {
+    // 1. Vem får varje rads månadsbelopp denna månad?
+    const inflow = st.map(() => 0);
+    st.forEach((x, i) => distribute(i, grown(x.row, m), m, inflow, new Set()));
+
+    // 2. Avkastning + insättning
+    st.forEach((x, i) => {
+      x.value = x.value * (1 + x.rm) + inflow[i];
+      x.contrib += inflow[i];
+      x.yearDeposits += inflow[i];
+      if (x.goal > 0 && x.goalMonth === null && x.value >= x.goal - 0.5) x.goalMonth = m;
+    });
+
+    // 3. Årsskatt. Fribeloppet är gemensamt för ISK + KF och fördelas
+    //    proportionellt över det sammanlagda kapitalunderlaget.
+    if (m % 12 === 0) {
+      const und = st.map(x => Math.max(0, (x.yearStart + x.value) / 2 + x.yearDeposits * 0.5));
+      let schablonBase = 0;
+      st.forEach((x, i) => {
+        if (x.row.account === "isk" || x.row.account === "kf") schablonBase += und[i];
+      });
+      const exempt = Math.min(schablonBase, num(T.iskFribelopp));
+      const taxable = schablonBase > 0 ? 1 - exempt / schablonBase : 0;
+      lastExemptShare = schablonBase > 0 ? exempt / schablonBase : 0;
+
+      st.forEach((x, i) => {
+        let t = 0;
+        if (applyTax) {
+          if (x.row.account === "isk" || x.row.account === "kf")
+            t = und[i] * taxable * schablonRate * capTax;
+          else if (x.row.account === "af")
+            t = und[i] * (num(T.fondSchablon) / 100) * capTax;
+          else if (x.row.account === "cash")
+            t = Math.max(0, x.value - x.yearStart - x.yearDeposits) * capTax;
+        }
+        x.value -= t; x.tax += t;
+        x.yearStart = x.value; x.yearDeposits = 0;
+      });
+    }
+
+    st.forEach(x => x.series.push({ m, value: x.value, contrib: x.contrib, tax: x.tax }));
+  }
+
+  // Skatt på orealiserad vinst vid uttag. ISK och KF är redan färdigbeskattade
+  // löpande; depåkonton beskattas först här.
+  if (applyTax) {
+    st.forEach(x => {
+      const acc = x.row.account;
+      if (acc !== "af" && acc !== "depot") return;
+      const gain = Math.max(0, x.value - x.contrib);
+      let t;
+      if (acc === "af") {
+        t = gain * capTax;                                   // svensk depå
+      } else if (T._c === "de") {
+        // Aktiefonder: 30 % av vinsten är skattefri (Teilfreistellung),
+        // resten Abgeltungsteuer + soli, efter Sparer-Pauschbetrag.
+        const base = Math.max(0, gain * (1 - num(T.teilfreistellung) / 100)
+                                 - num(T.sparerPauschbetrag));
+        t = base * capTax * (1 + num(T.soli) / 100);
+      } else {
+        t = gain * capTax;                                   // österrikisk KESt
+      }
+      x.value -= t; x.tax += t;
+      x.series[x.series.length - 1] = { m: months, value: x.value, contrib: x.contrib, tax: x.tax };
+    });
+  }
+
+  st.forEach(x => { x.growth = x.value - x.contrib; });
+
+  // Pengar som fortfarande lämnar budgeten vid horisontens slut men inte
+  // hamnar någonstans i prognosen: spartiden är slut eller målet är nått och
+  // ingen mottagare är vald. Värt att säga till om – annars försvinner de tyst.
+  // Torrkörning med slutvärdena: det distribute() inte får plats med någonstans
+  // är pengar som lämnar budgeten utan att synas i prognosen.
+  let idle = 0;
+  const scratch = st.map(() => 0);
+  st.forEach((x, i) => {
+    if (num(x.row.amount) <= 0) return;
+    idle += distribute(i, grown(x.row, months), months, scratch, new Set());
+  });
+
+  const agg = [];
+  for (let m = 0; m <= months; m++) {
+    let value = 0, contrib = 0, tax = 0;
+    st.forEach(x => { const p = x.series[m]; if (p) { value += p.value; contrib += p.contrib; tax += p.tax; } });
+    agg.push({ m, value, contrib, tax, growth: Math.max(0, value - contrib) });
+  }
+
+  const infl = num(iv.inflation) / 100;
+  const deflate = m => iv.real ? Math.pow(1 + infl, -m / 12) : 1;
+  const d = deflate(months);
+  const isCash = x => x.row.account === "cash";
+
+  return {
+    months, per: st, exemptShare: lastExemptShare, idle,
+    series: agg.map(p => ({ m: p.m,
+      value:   p.value   * deflate(p.m),
+      contrib: p.contrib * deflate(p.m),
+      growth:  p.growth  * deflate(p.m),
+      tax:     p.tax     * deflate(p.m) })),
+    total:    st.reduce((a, x) => a + x.value, 0) * d,
+    contrib:  st.reduce((a, x) => a + x.contrib, 0) * d,
+    tax:      st.reduce((a, x) => a + x.tax, 0) * d,
+    growth:   st.reduce((a, x) => a + (x.value - x.contrib), 0) * d,
+    cash:     st.filter(isCash).reduce((a, x) => a + x.value, 0) * d,
+    invested: st.filter(x => !isCash(x)).reduce((a, x) => a + x.value, 0) * d
+  };
+}
+
+/* ====================================================================
+   4. Rendering — inputs
+   ==================================================================== */
+
+const $ = id => document.getElementById(id);
+
+/**
+ * Skriver ett värde till ett fält – men aldrig till det fält som just nu har
+ * fokus. Att sätta .value på ett fokuserat fält flyttar markören till slutet,
+ * vilket gör det omöjligt att skriva mitt i ett tal.
+ */
+function setVal(el, v) { if (el && el !== document.activeElement) el.value = v; }
+
+function renderScenarios() {
+  const sel = $("scenarioSel");
+  sel.innerHTML = "";
+  Object.values(store.scenarios)
+    .sort((a, b) => a.name.localeCompare(b.name, "sv"))
+    .forEach(s => {
+      const o = document.createElement("option");
+      o.value = s.id; o.textContent = s.name;
+      o.selected = s.id === store.activeId;
+      sel.appendChild(o);
+    });
+}
+
+function renderIncome() {
+  const s = cur(), inc = s.income;
+  $("modeNet").setAttribute("aria-pressed", inc.mode === "net");
+  $("modeGross").setAttribute("aria-pressed", inc.mode === "gross");
+  $("netPane").classList.toggle("hidden", inc.mode !== "net");
+  $("grossPane").classList.toggle("hidden", inc.mode !== "gross");
+
+  setVal($("inNet"), inc.net);
+  setVal($("inGross"), inc.gross);
+  setVal($("inKommun"), s.tax.kommun);
+  setVal($("inChurch"), s.tax.church);
+  $("inAge66").checked = !!inc.age66;
+  setVal($("inKommunSel"), s.tax.kommunKod || "");
+  $("inChurchMember").checked = num(s.tax.church) > 0;
+  $("churchRow").classList.toggle("hidden", num(s.tax.church) <= 0);
+  $("kommunSrc").textContent = s.tax.kommunKod ? "– från SCB"
+    : num(s.tax.kommun) === DEFAULT_TAX.kommun ? "– riksgenomsnitt" : "– egen siffra";
+
+  refreshIncomeTotals();
+
+  const list = $("incomeList");
+  list.innerHTML = "";
+  inc.extra.forEach(r => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `<span></span>
+      <input type="text" value="${esc(r.label)}" data-f="label">
+      <input type="number" step="100" value="${r.amount}" data-f="amount">
+      <button class="ghost danger" title="Ta bort">×</button>`;
+    el.querySelector('[data-f=label]').oninput  = e => { r.label = e.target.value; save(); renderOutputs(); };
+    el.querySelector('[data-f=amount]').oninput = e => {
+      r.amount = num(e.target.value); save();
+      refreshIncomeTotals(); refreshRowStats(); renderOutputs();
+    };
+    el.querySelector('button').onclick = () => {
+      inc.extra = inc.extra.filter(x => x.id !== r.id); save(); renderIncome(); renderOutputs();
+    };
+    list.appendChild(el);
+  });
+}
+
+/**
+ * Uppdaterar bara de härledda talen i inkomstpanelen. Rör inte DOM-strukturen,
+ * så ett fält man skriver i överlever.
+ */
+function refreshIncomeTotals() {
+  const s = cur();
+  $("totIncome").textContent = fmt(incomeTotal(s));
+  if (s.income.mode !== "gross") return;
+  const r = countryNet(num(s.income.gross), s.tax, s.income.age66);
+  $("taxBreak").innerHTML =
+    `<b>Nettolön ca ${fmt(r.net)}/mån</b> &nbsp;·&nbsp; skatt ${fmt(r.tax / 12)}/mån
+     (effektivt ${pct(r.effective)})<br>
+     <span class="muted">Grundavdrag ${fmt(r.ga)}/år · kommunalskatt ${fmt(r.kommunal / 12)}/mån ·
+     jobbskatteavdrag −${fmt(r.jsa / 12)}/mån ·
+     statlig skatt ${fmt(r.statlig / 12)}/mån ·
+     begravningsavgift ${fmt(r.begravning / 12)}/mån${
+       r.church > 0 ? " · kyrkoavgift " + fmt(r.church / 12) + "/mån" : ""}</span>`;
+}
+
+function esc(str) {
+  return String(str).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderRows() {
+  const s = cur(), sum = summary(s), host = $("expenseGroups");
+  host.innerHTML = "";
+
+  KIND_ORDER.forEach(kind => {
+    const rows = s.rows.filter(r => r.kind === kind);
+    if (!rows.length) return;
+
+    const head = document.createElement("div");
+    head.className = "group-head";
+    head.innerHTML = `<span class="dot" style="background:${KINDS[kind].color}"></span>
+      <span class="name">${KINDS[kind].label}</span>
+      <span class="sum" data-sum="${kind}">${fmt(sum[kind])}</span>`;
+    host.appendChild(head);
+
+    const box = document.createElement("div");
+    box.className = "items";
+    rows.forEach(r => box.appendChild(rowEl(r, sum.income)));
+    host.appendChild(box);
+  });
+
+  $("totOut").textContent = fmt(sum.out);
+}
+
+/**
+ * Uppdaterar procenttal och gruppsummor utan att bygga om raderna.
+ * renderRows() sparkar ut markören ur fältet man skriver i, så den får bara
+ * köras vid strukturella ändringar: ny rad, borttagen rad, ändrad typ.
+ */
+function refreshRowStats() {
+  const s = cur(), sum = summary(s);
+  KIND_ORDER.forEach(k => {
+    const el = document.querySelector(`[data-sum="${k}"]`);
+    if (el) el.textContent = fmt(sum[k]);
+  });
+  s.rows.forEach(r => {
+    const el = document.querySelector(`[data-pct="${r.id}"]`);
+    if (!el) return;
+    const share = sum.income > 0 ? num(r.amount) / sum.income * 100 : 0;
+    el.textContent = share >= 0.5 ? pct(share) + " av inkomst" : "";
+  });
+  $("totOut").textContent = fmt(sum.out);
+}
+
+/**
+ * Mottagarlistan för en rad: en select + en procentsats per mottagare.
+ * Ritas om lokalt, inte via renderRows() – annars stängs detaljpanelen och
+ * markören åker ut ur fältet man skriver i.
+ */
+function renderRedirects(r, host, sumEl) {
+  const others = cur().rows.filter(o => o.kind !== "consumption" && o.id !== r.id);
+  const dests = normalizeRedirect(r.redirect);
+  host.innerHTML = "";
+  const pctInputs = [], krEls = [];
+
+  const opts = d => `<option value="${SELF}" ${d.to === SELF ? "selected" : ""}
+      >⤺ Stannar i ${esc(r.label)}</option>` + others.map(o =>
+      `<option value="${o.id}" ${d.to === o.id ? "selected" : ""}>${esc(o.label)}</option>`).join("");
+
+  /** Kronbeloppen bredvid procenten – vad varje mottagare faktiskt får. */
+  const paintKr = () => {
+    normalizeRedirect(r.redirect).forEach((d, j) => {
+      if (krEls[j]) krEls[j].textContent = fmt(num(r.amount) * num(d.pct) / 100);
+    });
+  };
+
+  dests.forEach((d, i) => {
+    const el = document.createElement("div");
+    el.className = "redir";
+    el.innerHTML = `<select>${opts(d)}</select>
+      <input type="number" min="0" max="100" step="5" value="${round1(num(d.pct))}">
+      <span class="redir-kr"></span>
+      <button class="ghost danger" title="Ta bort">×</button>`;
+    const [sel, pctIn, kr, del] = el.children;
+    pctInputs.push(pctIn); krEls.push(kr);
+
+    sel.onchange = e => { r.redirect[i].to = e.target.value; save(); paintKr(); renderOutputs(); };
+
+    pctIn.oninput = e => {
+      r.redirect[i].pct = num(e.target.value);
+      rebalance(r.redirect, i);
+      // Syskonfälten uppdateras på plats. Att bygga om listan här skulle
+      // slänga fältet man just skriver i.
+      pctInputs.forEach((el2, j) => { if (j !== i) el2.value = round1(num(r.redirect[j].pct)); });
+      paintKr(); save(); updateRedirSum(r, sumEl); renderOutputs();
+    };
+    // Vid blur skrivs fältet tillbaka från det sparade värdet, så en inmatning
+    // som klämts (t.ex. 200) inte blir kvar på skärmen och ljuger.
+    pctIn.onchange = () => { pctIn.value = round1(num(r.redirect[i].pct)); };
+
+    del.onclick = () => {
+      r.redirect = dests.filter((_, j) => j !== i);
+      if (r.redirect.length) rebalance(r.redirect, 0);
+      save(); renderRedirects(r, host, sumEl); renderOutputs();
+    };
+    host.appendChild(el);
+  });
+
+  if (!dests.length) {
+    host.innerHTML = `<span class="muted" style="font-size:12px">Sluta spara – beloppet
+      lämnar budgeten utan att hamna någonstans.</span>`;
+  }
+  paintKr();
+  updateRedirSum(r, sumEl);
+}
+
+function updateRedirSum(r, el) {
+  if (!el) return;
+  const dests = normalizeRedirect(r.redirect);
+  if (!dests.length) { el.textContent = ""; el.style.color = ""; return; }
+  el.textContent = `${fmt(num(r.amount))}/mån fördelas · summa 100 %`;
+  el.style.color = "";
+}
+
+function rowEl(r, income) {
+  const wrap = document.createElement("div");
+  wrap.style.display = "contents";
+
+  const el = document.createElement("div");
+  el.className = "item";
+  const share = income > 0 ? num(r.amount) / income * 100 : 0;
+  el.innerHTML = `
+    <span class="swatch" style="background:${KINDS[r.kind].color}"></span>
+    <input type="text" value="${esc(r.label)}" data-f="label" aria-label="Namn">
+    <input type="number" step="100" value="${r.amount}" data-f="amount" aria-label="Belopp">
+    <button class="ghost" title="Inställningar" aria-expanded="${openRow === r.id}">⋯</button>`;
+
+  el.querySelector('[data-f=label]').oninput  = e => { r.label = e.target.value; save(); renderOutputs(); };
+  el.querySelector('[data-f=amount]').oninput = e => {
+    r.amount = num(e.target.value); save(); refreshRowStats(); renderOutputs();
+  };
+  el.querySelector('button').onclick = () => { openRow = openRow === r.id ? null : r.id; renderRows(); };
+
+  const pctEl = document.createElement("span");
+  pctEl.className = "pct";
+  pctEl.dataset.pct = r.id;
+  pctEl.textContent = share >= 0.5 ? pct(share) + " av inkomst" : "";
+  el.insertBefore(pctEl, el.children[2]);
+  el.classList.add("item-row");   // kolumnerna definieras i CSS, se mediafrågan
+
+  wrap.appendChild(el);
+
+  if (openRow === r.id) {
+    const d = document.createElement("div");
+    d.className = "item-detail";
+    const isInv = r.kind !== "consumption";
+    d.innerHTML = `
+      <div><label>Typ</label>
+        <select data-f="kind">${KIND_ORDER.map(k =>
+          `<option value="${k}" ${r.kind === k ? "selected" : ""}>${KINDS[k].label}</option>`).join("")}</select></div>
+      <div class="${isInv ? "" : "hidden"}"><label>Avkastning (%/år)</label>
+        <input type="number" step="0.5" value="${r.ret}" data-f="ret"></div>
+      <div class="${isInv ? "" : "hidden"}"><label>Befintligt kapital</label>
+        <input type="number" step="1000" value="${r.start}" data-f="start"></div>
+      <div class="${isInv ? "" : "hidden"}"><label>Kontotyp</label>
+        <select data-f="account">${Object.entries(ACCOUNTS).map(([k, v]) =>
+          `<option value="${k}" ${r.account === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+      <div class="${isInv ? "" : "hidden"}"><label>Spara i (år)</label>
+        <input type="number" min="0" max="60" step="1" value="${r.years}" data-f="years"></div>
+      <div class="${isInv ? "" : "hidden"}"><label>Mål (kr, 0 = inget)</label>
+        <input type="number" min="0" step="10000" value="${r.goal}" data-f="goal"></div>
+      <div class="${isInv ? "" : "hidden"}" style="grid-column:1/-1">
+        <label>När målet nås eller spartiden tar slut – dela beloppet på</label>
+        <div data-f="redirlist"></div>
+        <div class="row" style="gap:8px;margin-top:6px">
+          <button class="ghost" data-f="addredir" style="font-size:11px;padding:3px 8px">+ Mottagare</button>
+          <span class="muted" data-f="redirsum"></span>
+        </div></div>
+      <div style="grid-column:span 2"><label>Löneutveckling</label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:6px 0">
+          <input type="checkbox" data-f="grows" ${r.grows !== false ? "checked" : ""}
+            style="width:auto;margin:0">
+          Växer med lönen</label></div>
+      <div style="grid-column:1/-1"><button class="ghost danger" data-f="del">Ta bort raden</button></div>`;
+
+    d.querySelector('[data-f=kind]').onchange = e => {
+      r.kind = e.target.value;
+      if (r.kind === "investment" && r.ret === 0) { r.ret = 7; r.account = "isk"; }
+      if (r.kind === "savings" && r.ret === 0)    { r.ret = 2; r.account = "cash"; }
+      save(); renderRows(); renderOutputs();
+    };
+    ["ret", "start", "years", "goal"].forEach(f => {
+      const i = d.querySelector(`[data-f=${f}]`);
+      if (i) i.oninput = e => { r[f] = num(e.target.value); save(); renderOutputs(); };
+    });
+    const acc = d.querySelector('[data-f=account]');
+    if (acc) acc.onchange = e => { r.account = e.target.value; save(); renderOutputs(); };
+    const list = d.querySelector('[data-f=redirlist]');
+    if (list) renderRedirects(r, list, d.querySelector('[data-f=redirsum]'));
+    const addBtn = d.querySelector('[data-f=addredir]');
+    if (addBtn) addBtn.onclick = () => {
+      const taken = normalizeRedirect(r.redirect).map(x => x.to);
+      const cands = [SELF, ...cur().rows
+        .filter(o => o.kind !== "consumption" && o.id !== r.id).map(o => o.id)];
+      const free = cands.find(c => !taken.includes(c));
+      if (!free) { alert("Alla möjliga mottagare är redan tillagda."); return; }
+      // Den nya mottagaren får en jämn andel; övriga skalas ned proportionellt.
+      const next = [...normalizeRedirect(r.redirect), { to: free, pct: 0 }];
+      next[next.length - 1].pct = round1(100 / next.length);
+      r.redirect = rebalance(next, next.length - 1);
+      save(); renderRedirects(r, list, d.querySelector('[data-f=redirsum]')); renderOutputs();
+    };
+    const gr = d.querySelector('[data-f=grows]');
+    if (gr) gr.onchange = e => { r.grows = e.target.checked; save(); renderOutputs(); };
+    d.querySelector('[data-f=del]').onclick = () => {
+      cur().rows = cur().rows.filter(x => x.id !== r.id);
+      openRow = null; save(); renderRows(); renderOutputs();
+    };
+    wrap.appendChild(d);
+  }
+  return wrap;
+}
+
+/* ====================================================================
+   5. Rendering — charts
+   ==================================================================== */
+
+const tip = $("tooltip");
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.opacity = "1";
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY - r.height / 2;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  tip.style.left = Math.max(8, x) + "px";
+  tip.style.top  = Math.min(Math.max(8, y), innerHeight - r.height - 8) + "px";
+}
+const hideTip = () => { tip.style.opacity = "0"; };
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function niceTicks(max, count) {
+  if (max <= 0) return [0];
+  const raw = max / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(v => v >= raw) || 10 * mag;
+  const out = [];
+  for (let v = 0; v <= max * 1.0001; v += step) out.push(v);
+  return out;
+}
+
+/** Horisontella staplar för alla budgetrader, färgade per typ. */
+function renderExpenseChart() {
+  const s = cur(), sum = summary(s), svg = $("chartExpense");
+  svg.innerHTML = "";
+
+  const data = s.rows.filter(r => num(r.amount) > 0)
+    .map(r => ({ label: r.label, value: num(r.amount), kind: r.kind }))
+    .sort((a, b) => b.value - a.value);
+
+  if (!data.length) {
+    svg.setAttribute("viewBox", "0 0 600 40");
+    svg.appendChild(Object.assign(svgEl("text", { x: 0, y: 24, class: "barname" }),
+      { textContent: "Inga rader med belopp ännu." }));
+    renderLegend("legendExpense", KIND_ORDER.map(k => ({ label: KINDS[k].label, color: KINDS[k].color })));
+    return;
+  }
+
+  const W = 600, padL = 150, padR = 78, rowH = 26, barH = 16;
+  const H = data.length * rowH + 28;
+  const max = Math.max(...data.map(d => d.value));
+  const x = v => padL + (v / max) * (W - padL - padR);
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+
+  niceTicks(max, 4).forEach(t => {
+    svg.appendChild(svgEl("line", { x1: x(t), x2: x(t), y1: 0, y2: H - 22,
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const lb = svgEl("text", { x: x(t), y: H - 8, class: "tick", "text-anchor": "middle" });
+    lb.textContent = t >= 1000 ? Math.round(t / 1000) + "k" : t;
+    svg.appendChild(lb);
+  });
+
+  data.forEach((d, i) => {
+    const y = i * rowH + 4;
+    const w = Math.max(2, x(d.value) - padL);
+
+    const name = svgEl("text", { x: padL - 10, y: y + barH / 2 + 4, class: "barname", "text-anchor": "end" });
+    name.textContent = d.label.length > 22 ? d.label.slice(0, 21) + "…" : d.label;
+    svg.appendChild(name);
+
+    // 4px rundad dataände, fyrkantig vid baslinjen
+    const r = Math.min(4, w);
+    const bar = svgEl("path", {
+      d: `M${padL},${y} H${padL + w - r} a${r},${r} 0 0 1 ${r},${r} V${y + barH - r} a${r},${r} 0 0 1 ${-r},${r} H${padL} Z`,
+      fill: KINDS[d.kind].color
+    });
+    bar.style.cursor = "default";
+    svg.appendChild(bar);
+
+    const val = svgEl("text", { x: padL + w + 8, y: y + barH / 2 + 4, class: "barlabel" });
+    val.textContent = fmt(d.value);
+    svg.appendChild(val);
+
+    const hit = svgEl("rect", { x: 0, y, width: W, height: barH, fill: "transparent" });
+    const share = sum.income > 0 ? d.value / sum.income * 100 : 0;
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt-title">${esc(d.label)}</div>
+       <div class="tt-row"><span><i style="background:${KINDS[d.kind].color}"></i>${KINDS[d.kind].label}</span><b>${fmt(d.value)}</b></div>
+       <div class="tt-row"><span>Andel av inkomst</span><b>${pct(share)}</b></div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+
+  renderLegend("legendExpense", KIND_ORDER.map(k => ({ label: KINDS[k].label, color: KINDS[k].color })));
+
+  $("tableExpense").innerHTML = `<table><thead><tr>
+      <th>Rad</th><th>Typ</th><th>Belopp</th><th>Andel</th></tr></thead><tbody>
+    ${data.map(d => `<tr><td>${esc(d.label)}</td><td>${KINDS[d.kind].label}</td>
+      <td>${fmt(d.value)}</td>
+      <td>${sum.income > 0 ? pct(d.value / sum.income * 100) : "–"}</td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+/**
+ * Flödesdiagram över var pengarna tar vägen.
+ *
+ * Fyra nivåer: inkomstkälla -> total inkomst -> typ -> enskild rad.
+ * Inkomstsidan är neutralt grå; efter navet bär banden typens färg, så att
+ * en färg betyder exakt samma sak här som i stapeldiagrammet.
+ */
+function renderSankeyChart() {
+  const s = cur(), sum = summary(s), svg = $("chartSankey");
+  svg.innerHTML = "";
+
+  const income = sum.income;
+  if (income <= 0) {
+    svg.setAttribute("viewBox", "0 0 600 40");
+    const t = svgEl("text", { x: 0, y: 24, class: "barname" });
+    t.textContent = "Lägg in en inkomst för att se flödet.";
+    svg.appendChild(t);
+    return;
+  }
+
+  const NEUTRAL = cssVar("--ink-3");
+  const nodes = [], links = [];
+  const addNode = (n) => { nodes.push(n); return nodes.length - 1; };
+
+  // --- kolumn 0: inkomstkällor
+  const srcIdx = [];
+  const salary = s.income.mode === "gross"
+    ? countryNet(num(s.income.gross), s.tax, s.income.age66).net
+    : num(s.income.net);
+  if (salary > 0) srcIdx.push(addNode({
+    label: s.income.mode === "gross" ? "Nettolön" : "Nettolön",
+    value: salary, col: 0, color: NEUTRAL }));
+  s.income.extra.forEach(r => {
+    if (num(r.amount) > 0) srcIdx.push(addNode({
+      label: r.label || "Övrig inkomst", value: num(r.amount), col: 0, color: NEUTRAL }));
+  });
+
+  // --- kolumn 1: nav
+  const hub = addNode({ label: "Total inkomst", value: income, col: 1, color: NEUTRAL });
+  srcIdx.forEach(i => links.push({ from: i, to: hub, value: nodes[i].value, color: NEUTRAL }));
+
+  // --- kolumn 2: typ, plus "Kvar"
+  const groupIdx = {};
+  KIND_ORDER.forEach(k => {
+    if (sum[k] <= 0) return;
+    groupIdx[k] = addNode({ label: KINDS[k].label, value: sum[k], col: 2, color: KINDS[k].color });
+    links.push({ from: hub, to: groupIdx[k], value: sum[k], color: KINDS[k].color });
+  });
+  if (sum.left > 0) {
+    const left = addNode({ label: "Kvar", value: sum.left, col: 2, color: NEUTRAL });
+    links.push({ from: hub, to: left, value: sum.left, color: NEUTRAL });
+  }
+
+  // --- kolumn 3: enskilda rader, grupperade i samma ordning som kolumn 2
+  KIND_ORDER.forEach(k => {
+    if (!(k in groupIdx)) return;
+    s.rows.filter(r => r.kind === k && num(r.amount) > 0)
+      .sort((a, b) => num(b.amount) - num(a.amount))
+      .forEach(r => {
+        const i = addNode({ label: r.label, value: num(r.amount), col: 3, color: KINDS[k].color });
+        links.push({ from: groupIdx[k], to: i, value: num(r.amount), color: KINDS[k].color });
+      });
+  });
+
+  // ---------- layout
+  const colCount = [0, 1, 2, 3].map(c => nodes.filter(n => n.col === c).length);
+  const W = 900, padT = 16, padB = 10, gap = 7, NW = 11;
+  const H = Math.max(300, Math.min(760, colCount[3] * 30 + 40));
+  const colX = [112, 300, 496, 680];
+
+  [0, 1, 2, 3].forEach(c => {
+    const list = nodes.filter(n => n.col === c);
+    const avail = H - padT - padB - gap * Math.max(0, list.length - 1);
+    const scale = avail / income;
+    let y = padT;
+    list.forEach(n => {
+      n.h = Math.max(2, n.value * scale);
+      n.x = colX[c]; n.y = y;
+      n.inCur = n.y; n.outCur = n.y;
+      y += n.h + gap;
+    });
+  });
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+
+  // ---------- band
+  links.forEach(l => {
+    const a = nodes[l.from], b = nodes[l.to];
+    const t0 = Math.max(1.5, l.value * (a.h / a.value));
+    const t1 = Math.max(1.5, l.value * (b.h / b.value));
+    const x0 = a.x + NW, x1 = b.x;
+    const y0 = a.outCur, y1 = b.inCur;
+    a.outCur += t0; b.inCur += t1;
+    const xm = (x0 + x1) / 2;
+    const path = svgEl("path", {
+      d: `M${x0},${y0} C${xm},${y0} ${xm},${y1} ${x1},${y1} ` +
+         `L${x1},${y1 + t1} C${xm},${y1 + t1} ${xm},${y0 + t0} ${x0},${y0 + t0} Z`,
+      fill: l.color, "fill-opacity": 0.22
+    });
+    svg.appendChild(path);
+
+    const hit = svgEl("path", { d: path.getAttribute("d"), fill: "transparent" });
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt-title">${esc(a.label)} → ${esc(b.label)}</div>
+       <div class="tt-row"><span><i style="background:${l.color}"></i>Belopp</span><b>${fmt(l.value)}</b></div>
+       <div class="tt-row"><span>Andel av inkomst</span><b>${pct(l.value / income * 100)}</b></div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+
+  // ---------- noder + etiketter
+  nodes.forEach(n => {
+    svg.appendChild(svgEl("rect", { x: n.x, y: n.y, width: NW, height: n.h,
+      rx: 2, fill: n.color }));
+
+    let lbl;
+    if (n.col === 0) {
+      lbl = svgEl("text", { x: n.x - 8, y: n.y + n.h / 2 + 4, class: "barname", "text-anchor": "end" });
+      lbl.textContent = n.label;
+    } else if (n.col === 3) {
+      lbl = svgEl("text", { x: n.x + NW + 8, y: n.y + n.h / 2 + 4, class: "barname" });
+      lbl.textContent = `${n.label.length > 16 ? n.label.slice(0, 15) + "…" : n.label} · ${fmt(n.value)}`;
+    } else {
+      // nav och typ: etiketten ovanför noden, så banden aldrig skrivs över
+      lbl = svgEl("text", { x: n.x, y: n.y - 6, class: "barlabel" });
+      lbl.textContent = `${n.label} · ${fmt(n.value)}`;
+    }
+    svg.appendChild(lbl);
+
+    const hit = svgEl("rect", { x: n.x - 2, y: n.y, width: NW + 4, height: n.h, fill: "transparent" });
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt-title">${esc(n.label)}</div>
+       <div class="tt-row"><span>Belopp</span><b>${fmt(n.value)}</b></div>
+       <div class="tt-row"><span>Andel av inkomst</span><b>${pct(n.value / income * 100)}</b></div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+}
+
+function renderLegend(id, items) {
+  $(id).innerHTML = items.map(i =>
+    `<span><i style="background:${i.color}"></i>${i.label}</span>`).join("");
+}
+
+/** Staplad yta: insatt kapital + avkastning över tid. */
+function renderGrowthChart(proj) {
+  const svg = $("chartGrowth"), s = cur();
+  svg.innerHTML = "";
+  const pts = proj.series.filter((_, i) => i % 3 === 0 || i === proj.series.length - 1);
+
+  if (!pts.length || proj.total <= 0) {
+    svg.setAttribute("viewBox", "0 0 600 40");
+    const t = svgEl("text", { x: 0, y: 24, class: "barname" });
+    t.textContent = "Lägg till en rad av typen Sparande eller Investering.";
+    svg.appendChild(t);
+    $("legendGrowth").innerHTML = "";
+    return;
+  }
+
+  const W = 600, H = 240, padL = 52, padR = 12, padT = 10, padB = 26;
+  const maxV = Math.max(...pts.map(p => p.value));
+  const maxM = proj.months;
+  const x = m => padL + (m / maxM) * (W - padL - padR);
+  const y = v => H - padB - (v / maxV) * (H - padT - padB);
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+
+  niceTicks(maxV, 4).forEach(t => {
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y(t), y2: y(t),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const lb = svgEl("text", { x: padL - 8, y: y(t) + 3, class: "tick", "text-anchor": "end" });
+    lb.textContent = t >= 1e6 ? (t / 1e6).toLocaleString("sv-SE", { maximumFractionDigits: 1 }) + "M"
+                   : t >= 1e3 ? Math.round(t / 1e3) + "k" : Math.round(t);
+    svg.appendChild(lb);
+  });
+
+  const years = Math.round(maxM / 12);
+  const stepY = years <= 10 ? 2 : years <= 25 ? 5 : 10;
+  for (let yr = 0; yr <= years; yr += stepY) {
+    const lb = svgEl("text", { x: x(yr * 12), y: H - 8, class: "tick", "text-anchor": "middle" });
+    lb.textContent = yr + " år";
+    svg.appendChild(lb);
+  }
+
+  const area = (topFn, botFn, fill, op) => {
+    let d = "M" + pts.map(p => `${x(p.m)},${y(topFn(p))}`).join(" L");
+    d += " L" + pts.slice().reverse().map(p => `${x(p.m)},${y(botFn(p))}`).join(" L") + " Z";
+    svg.appendChild(svgEl("path", { d, fill, "fill-opacity": op }));
+  };
+  const line = (fn, stroke) => svg.appendChild(svgEl("path", {
+    d: "M" + pts.map(p => `${x(p.m)},${y(fn(p))}`).join(" L"),
+    fill: "none", stroke, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+  // Avkastning ovanpå insatt kapital, med 2px ytmellanrum mellan banden
+  area(p => p.value, p => p.contrib, cssVar("--series-2"), 0.16);
+  area(p => p.contrib, () => 0, cssVar("--series-1"), 0.16);
+  svg.appendChild(svgEl("path", {
+    d: "M" + pts.map(p => `${x(p.m)},${y(p.contrib)}`).join(" L"),
+    fill: "none", stroke: "var(--surface-1)", "stroke-width": 2 }));
+  line(p => p.contrib, cssVar("--series-1"));
+  line(p => p.value,   cssVar("--series-2"));
+
+  const last = pts[pts.length - 1];
+  svg.appendChild(svgEl("circle", { cx: x(last.m), cy: y(last.value), r: 4,
+    fill: cssVar("--series-2"), stroke: "var(--surface-1)", "stroke-width": 2 }));
+  const endLbl = svgEl("text", { x: x(last.m) - 6, y: y(last.value) - 12,
+    class: "barlabel", "text-anchor": "end" });
+  endLbl.textContent = fmtK(last.value);
+  svg.appendChild(endLbl);
+
+  // hover: hårkors + tooltip
+  const cross = svgEl("line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
+    "stroke-width": 1, opacity: 0 });
+  svg.appendChild(cross);
+  const hit = svgEl("rect", { x: padL, y: padT, width: W - padL - padR,
+    height: H - padT - padB, fill: "transparent" });
+  hit.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const rel = (ev.clientX - box.left) / box.width * W;
+    const m = Math.max(0, Math.min(maxM, Math.round((rel - padL) / (W - padL - padR) * maxM)));
+    const p = proj.series[m]; if (!p) return;
+    cross.setAttribute("x1", x(m)); cross.setAttribute("x2", x(m)); cross.setAttribute("opacity", 1);
+    showTip(
+      `<div class="tt-title">År ${(m / 12).toFixed(1).replace(".", ",")}</div>
+       <div class="tt-row"><span><i style="background:${cssVar("--series-1")}"></i>Insatt</span><b>${fmt(p.contrib)}</b></div>
+       <div class="tt-row"><span><i style="background:${cssVar("--series-2")}"></i>Avkastning</span><b>${fmt(p.growth)}</b></div>
+       <div class="tt-row" style="border-top:1px solid var(--grid);margin-top:4px;padding-top:4px">
+         <span>Totalt</span><b>${fmt(p.value)}</b></div>`, ev);
+  });
+  hit.addEventListener("mouseleave", () => { hideTip(); cross.setAttribute("opacity", 0); });
+  svg.appendChild(hit);
+
+  renderLegend("legendGrowth", [
+    { label: "Insatt kapital", color: cssVar("--series-1") },
+    { label: "Avkastning",     color: cssVar("--series-2") }
+  ]);
+
+  const rows = [];
+  for (let yr = 0; yr <= years; yr++) {
+    const p = proj.series[yr * 12]; if (!p) continue;
+    rows.push(`<tr><td>${yr}</td><td>${fmt(p.contrib)}</td><td>${fmt(p.growth)}</td><td>${fmt(p.value)}</td></tr>`);
+  }
+  $("tableGrowth").innerHTML = `<table><thead><tr>
+    <th>År</th><th>Insatt</th><th>Avkastning</th><th>Totalt</th></tr></thead>
+    <tbody>${rows.join("")}</tbody></table>`;
+}
+
+/** Jämför ISK / KF / depå för samma insättningar. */
+function renderAccountChart(s) {
+  const svg = $("chartAccount");
+  svg.innerHTML = "";
+  const invRows = s.rows.filter(r => r.kind !== "consumption" && num(r.amount) > 0);
+  if (!invRows.length) { $("tableAccount").innerHTML = ""; return; }
+
+  const months = Math.round(num(s.invest.horizon) * 12);
+  const combined = {
+    id: "x", amount: invRows.reduce((a, r) => a + num(r.amount), 0),
+    start: invRows.reduce((a, r) => a + num(r.start), 0),
+    ret: invRows.reduce((a, r) => a + num(r.ret) * num(r.amount), 0) /
+         Math.max(1, invRows.reduce((a, r) => a + num(r.amount), 0)),
+    kind: "investment"
+  };
+  const infl = num(s.invest.inflation) / 100;
+  const defl = s.invest.real ? Math.pow(1 + infl, -months / 12) : 1;
+
+  const opts = Object.keys(ACCOUNTS).filter(a => a !== "cash");
+  const data = opts.map((acc, i) => {
+    const p = projectOne({ ...combined, account: acc }, months, s.tax, true, num(s.tax.iskFribelopp));
+    return { key: acc, label: ACCOUNTS[acc], value: p.value * defl, tax: p.tax * defl,
+             color: cssVar(`--series-${i + 1}`) };
+  });
+
+  const W = 600, padL = 130, padR = 90, rowH = 34, barH = 18;
+  const H = data.length * rowH + 8;
+  const max = Math.max(...data.map(d => d.value));
+  const x = v => padL + (v / max) * (W - padL - padR);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+
+  data.forEach((d, i) => {
+    const y = i * rowH + 6, w = Math.max(2, x(d.value) - padL), r = Math.min(4, w);
+    const name = svgEl("text", { x: padL - 10, y: y + barH / 2 + 4, class: "barname", "text-anchor": "end" });
+    name.textContent = d.label;
+    svg.appendChild(name);
+    svg.appendChild(svgEl("path", {
+      d: `M${padL},${y} H${padL + w - r} a${r},${r} 0 0 1 ${r},${r} V${y + barH - r} a${r},${r} 0 0 1 ${-r},${r} H${padL} Z`,
+      fill: d.color }));
+    const val = svgEl("text", { x: padL + w + 8, y: y + barH / 2 + 4, class: "barlabel" });
+    val.textContent = fmtK(d.value);
+    svg.appendChild(val);
+
+    const hit = svgEl("rect", { x: 0, y, width: W, height: barH, fill: "transparent" });
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="tt-title">${d.label}</div>
+       <div class="tt-row"><span>Slutvärde</span><b>${fmt(d.value)}</b></div>
+       <div class="tt-row"><span>Betald skatt</span><b>${fmt(d.tax)}</b></div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  });
+
+  $("tableAccount").innerHTML = `<table><thead><tr>
+    <th>Kontotyp</th><th>Slutvärde</th><th>Betald skatt</th></tr></thead><tbody>
+    ${data.map(d => `<tr><td>${d.label}</td><td>${fmt(d.value)}</td><td>${fmt(d.tax)}</td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+/* ====================================================================
+   6. Rendering — outputs
+   ==================================================================== */
+
+function renderOutputs() {
+  const s = cur(), sum = summary(s);
+  syncCountry(s);
+  $("betaBanner").classList.toggle("hidden", !COUNTRIES[s.country].beta);
+  if (COUNTRIES[s.country].beta) {
+    $("betaBanner").innerHTML =
+      `<b>BETA – ${COUNTRIES[s.country].name}.</b> Skattemotorn bygger på
+       ${s.country === "de" ? "§32a EStG och publicerade satser för 2026"
+                            : "publicerade tarifstufor för 2026"}, men är inte
+       avstämd mot landets egen räknesnurra på det sätt den svenska är.
+       ${s.country === "de"
+         ? "Steuerklasse antas vara 1 och avdragsgilla Vorsorgeaufwendungen approximeras med hela socialavgiften."
+         : "13:e och 14:e lönen antas rymmas inom Jahressechstel och Absetzbeträge utöver Verkehrsabsetzbetrag saknas."}
+       Behandla nettot som en uppskattning.`;
+  }
+
+  $("heroLeft").textContent = fmt(sum.left);
+  $("heroLeft").style.color = sum.left < 0 ? "var(--critical)" : "";
+  $("heroSub").textContent = sum.left < 0
+    ? "Budgeten går back – utflödet är större än inkomsten."
+    : `Efter alla utgifter, sparande och investeringar.`;
+
+  $("tIncome").textContent = fmt(sum.income);
+  $("tCons").textContent   = fmt(sum.consumption);
+  $("tSave").textContent   = fmt(sum.saved);
+  $("tRate").textContent   = pct(sum.rate);
+  $("tRateSub").textContent = `${fmt(sum.saved)} av ${fmt(sum.income)}`;
+
+  // Horisonten härleds ur radernas spartider innan något projiceras, så att
+  // allt nedströms – diagram, tabeller, CSV, jämförelse – ser samma antal år.
+  s.invest.horizon = resolveHorizon(s);
+  const autoH = s.invest.autoHorizon !== false;
+  $("horizonSrc").textContent = autoH
+    ? "– följer längsta spartiden" : "– eget val";
+  $("btnAutoHorizon").classList.toggle("hidden", autoH);
+
+  setVal($("inHorizon"), s.invest.horizon);
+  setVal($("inInflation"), s.invest.inflation);
+  setVal($("inWageGrowth"), s.invest.wageGrowth);
+  $("inWageOn").checked = s.invest.wageGrowthOn !== false;
+  const realWage = (1 + num(s.invest.wageGrowth) / 100) / (1 + num(s.invest.inflation) / 100) - 1;
+  $("wageReal").textContent = s.invest.wageGrowthOn === false
+    ? "– avstängd"
+    : `– motsvarar ${pct(realWage * 100)} realt vid ${pct(num(s.invest.inflation))} inflation`;
+  $("inWageGrowth").disabled = s.invest.wageGrowthOn === false;
+  $("wagePresets").classList.toggle("hidden", s.invest.wageGrowthOn === false);
+  $("inReal").checked    = !!s.invest.real;
+  $("inTax").checked     = !!s.invest.applyTax;
+
+  const proj = projectAll(s);
+
+  $("iContrib").textContent = fmtK(proj.contrib);
+  $("iGrowth").textContent  = fmtK(proj.growth);
+  $("iTax").textContent     = s.invest.applyTax ? fmtK(proj.tax) : "–";
+  $("iTaxSub").textContent  = s.invest.applyTax
+    ? (proj.exemptShare > 0 ? `${pct(proj.exemptShare * 100)} inom fribeloppet` : "Fribeloppet är förbrukat")
+    : "Skatt ej medräknad";
+  $("iTotal").textContent   = fmtK(proj.total);
+  $("iTotalSub").textContent = s.invest.real
+    ? `Om ${s.invest.horizon} år, i dagens penningvärde`
+    : `Om ${s.invest.horizon} år, nominellt`;
+  $("iCash").textContent     = fmtK(proj.cash);
+  $("iInvested").textContent = fmtK(proj.invested);
+
+  $("growthCaption").textContent = s.invest.real
+    ? `Insatt kapital och avkastning, i dagens penningvärde`
+    : `Insatt kapital och avkastning, nominella kronor`;
+
+  const flow = s.viz === "flow";
+  $("vizBars").setAttribute("aria-pressed", !flow);
+  $("vizFlow").setAttribute("aria-pressed", flow);
+  $("chartExpense").classList.toggle("hidden", flow);
+  $("chartSankey").classList.toggle("hidden", !flow);
+  $("vizCaption").textContent = flow
+    ? "Från inkomst till varje enskild rad – bandens tjocklek är kronor"
+    : "Fördelning per rad, störst först";
+
+  renderExpenseChart();
+  if (flow) renderSankeyChart();
+  renderGrowthChart(proj);
+  renderAccountChart(s);
+  renderGoalCharts(proj, s);
+  renderPerRow(proj, s);
+  const pens = renderPension(s, s.invest.horizon);
+  renderFutureBudget(s, s.invest.horizon);
+  renderTaxCheck(s);
+
+  // Totalbild: eget sparande + pension. Det är den siffran som faktiskt går
+  // att jämföra mellan länder, eftersom pensionen betalas på olika håll.
+  $("iTotalSub").textContent = (s.invest.real
+    ? `Om ${s.invest.horizon} år, i dagens penningvärde`
+    : `Om ${s.invest.horizon} år, nominellt`)
+    + (pens ? ` · med pension ${fmtK(proj.total + pens.value)}` : "");
+  renderCompare();
+  $("totIncome").textContent = fmt(sum.income);
+}
+
+/**
+ * Hur budgeten ser ut om `years` år, med nominell löneökning och
+ * framskrivna skattekonstanter.
+ *
+ * I bruttoläge körs skattemotorn om för varje år med indexerade konstanter.
+ * Utan det skulle en nominellt växande lön glida in i statlig skatt på ren
+ * inflation – en effekt som inte finns i verkligheten, eftersom skiktgränsen
+ * skrivs upp snabbare än priserna.
+ */
+function futureBudget(s, years) {
+  const iv = s.invest;
+  const inc = incomeAt(s, years);
+  const { gross, net, effective, statlig, income } = inc;
+
+  // Utgifter och sparande följer nettoinkomsten, inte bruttolönen.
+  const base = incomeAt(s, 0).income;
+  const f = base > 0 ? income / base : 1;
+  const scale = r => (r.grows === false ? 1 : f);
+
+  const by = { consumption: 0, savings: 0, investment: 0 };
+  s.rows.forEach(r => { by[r.kind] += num(r.amount) * scale(r); });
+  const out = by.consumption + by.savings + by.investment;
+  const saved = by.savings + by.investment;
+
+  return { years, gross, net, effective, statlig, income, gross0: inc.gross0, ...by, out, saved,
+           left: income - out,
+           rate: income > 0 ? saved / income * 100 : 0,
+           deflator: Math.pow(1 + num(iv.inflation) / 100, -years) };
+}
+
+/** Första året då statlig inkomstskatt börjar tas ut, eller null. */
+function brytpunktYear(s, maxYears) {
+  for (let y = 0; y <= maxYears; y++) if (incomeAt(s, y).statlig > 0) return y;
+  return null;
+}
+
+/**
+ * Pensionsavsättning – pengar som byggs upp åt dig men aldrig syns i budgeten.
+ *
+ * I Sverige betalas allmän pension via arbetsgivaravgiften och tjänstepension
+ * via kollektivavtal; ingetdera dras från din lön. I Tyskland och Österrike
+ * dras arbetstagarens andel däremot direkt på lönebeskedet. Här visas hela
+ * avsättningen oavsett vem som formellt betalar, annars blir en jämförelse
+ * mellan länderna systematiskt fel.
+ */
+function renderPension(s, years) {
+  const box = $("pensionBox");
+  $("inPensionOn").checked = s.pension.on !== false;
+  if (s.pension.on === false) {
+    box.innerHTML = `<p class="muted">Avstängd. Pensionen räknas inte in i förmögenheten.</p>`;
+    return null;
+  }
+
+  const ret = num(s.pension.ret) || 5;
+  const rm = Math.pow(1 + ret / 100, 1 / 12) - 1;
+  // Inkomstbasbeloppet följer inkomstindex, alltså löneutvecklingen – inte KPI.
+  const wg = s.invest.wageGrowthOn === false ? 0 : num(s.invest.wageGrowth) / 100;
+  const yearly = [];
+  for (let y = 0; y <= years; y++)
+    yearly.push(countryPension(incomeAt(s, y).gross, s.tax, Math.pow(1 + wg, y)));
+
+  let v = 0, paid = 0;
+  for (let m = 1; m <= years * 12; m++) {
+    const c = yearly[Math.floor((m - 1) / 12)].total / 12;
+    v = v * (1 + rm) + c; paid += c;
+  }
+  const defl = s.invest.real ? Math.pow(1 + num(s.invest.inflation) / 100, -years) : 1;
+  const now = yearly[0], end = yearly[years];
+  const se = s.country === "se";
+
+  box.innerHTML = `<table><thead><tr><th>Per månad</th><th>Idag</th>
+      <th>Om ${years} år</th></tr></thead><tbody>
+    ${se ? `<tr><td>Allmän pension</td><td>${fmt(now.allman / 12)}</td>
+             <td>${fmt(end.allman / 12 * defl)}</td></tr>
+            <tr><td>Tjänstepension</td><td>${fmt(now.tjanst / 12)}</td>
+             <td>${fmt(end.tjanst / 12 * defl)}</td></tr>`
+          : `<tr><td>Lagstadgad pensionsavgift</td><td>${fmt(now.total / 12)}</td>
+             <td>${fmt(end.total / 12 * defl)}</td></tr>`}
+    <tr><td><b>Totalt</b></td><td><b>${fmt(now.total / 12)}</b></td>
+      <td><b>${fmt(end.total / 12 * defl)}</b></td></tr>
+    </tbody></table>
+    <div class="tiles" style="margin-top:12px">
+      <div class="tile"><div class="label">Pensionskapital om ${years} år</div>
+        <div class="value">${fmtK(v * defl)}</div>
+        <div class="sub">vid ${pct(ret)} avkastning</div></div>
+      <div class="tile"><div class="label">Varav inbetalt</div>
+        <div class="value">${fmtK(paid * defl)}</div></div>
+    </div>
+    <p class="muted" style="margin-top:8px">${se
+      ? `Betalas av arbetsgivaren – allmän pension via arbetsgivaravgiften,
+         tjänstepension via kollektivavtal (${SE_PENSION.tjanstLag} % upp till
+         ${fmt(SE_PENSION.allmanTak * SE_PENSION.ibb / 12)}/mån, ${SE_PENSION.tjanstHog} % däröver).
+         Syns inte på lönebeskedet och ingår inte i budgeten ovan.`
+      : `Arbetstagarens del är redan avdragen i nettolönen ovan. Här visas hela
+         avgiften inklusive arbetsgivarens del, för att kunna jämföras med Sverige.`}</p>`;
+  return { value: v * defl, paid: paid * defl };
+}
+
+function renderFutureBudget(s, years) {
+  const host = $("futureBudget"), note = $("brytpunktNote");
+  const on = s.invest.wageGrowthOn !== false && num(s.invest.wageGrowth) > 0;
+  const gross = s.income.mode === "gross";
+
+  if (!on) {
+    host.innerHTML = `<p class="muted">Löneökning är avstängd – budgeten antas ligga
+      still i kronor i hela ${years} år. Slå på den ovan för att se utvecklingen.</p>`;
+    note.classList.add("hidden");
+    return;
+  }
+
+  const mid = Math.round(years / 2);
+  const cols = [0, mid, years].filter((v, i, a) => a.indexOf(v) === i);
+  const b = cols.map(y => futureBudget(s, y));
+  const real = !!s.invest.real;
+  const adj = (v, x) => real ? v * x.deflator : v;
+
+  const row = (label, get, fmtFn) => `<tr><td>${label}</td>${
+    b.map(x => `<td>${fmtFn(adj(get(x), x))}</td>`).join("")}</tr>`;
+
+  host.innerHTML = `<table><thead><tr><th>Per månad</th>
+    ${b.map(x => `<th>${x.years === 0 ? "Idag" : "Om " + x.years + " år"}</th>`).join("")}
+    </tr></thead><tbody>
+    ${row(gross ? "Bruttolön" : "Bruttolön (härledd)", x => x.gross, fmt)}
+    ${row("Inkomst efter skatt", x => x.income, fmt)}
+    <tr><td>Effektiv skatt</td>${b.map(x => `<td>${pct(x.effective)}</td>`).join("")}</tr>
+    <tr><td>Marginalskatt</td>${b.map(x => {
+      const t0 = countryNet(x.gross, indexedTaxCountry(s.tax, x.years, s.invest.inflation), s.income.age66);
+      const t1 = countryNet(x.gross + 100, indexedTaxCountry(s.tax, x.years, s.invest.inflation), s.income.age66);
+      return `<td>${pct((1 - (t1.net - t0.net) / 100) * 100)}</td>`;
+    }).join("")}</tr>
+    ${row("Utgifter", x => x.consumption, fmt)}
+    ${row("Sparande + investering", x => x.saved, fmt)}
+    ${row("Kvar att leva på", x => x.left, fmt)}
+    <tr><td>Sparkvot</td>${b.map(x => `<td>${pct(x.rate)}</td>`).join("")}</tr>
+    </tbody></table>
+    <p class="muted" style="margin-top:8px">
+      ${real ? "I dagens penningvärde." : "Nominella kronor."}
+      Rader märkta <b>växer inte med lönen</b> ligger fast – de krymper realt över tid.</p>
+    ${b.some(x => x.left < 0) ? `<div class="note" style="border-color:var(--critical)">
+      <b>Budgeten går back innan horisonten är slut.</b> Utgifter och sparande växer
+      snabbare än inkomsten efter skatt – prognosen förutsätter alltså pengar som
+      inte finns. Sänk något som växer, eller kryssa ur <b>Växer med lönen</b> på
+      några rader.</div>` : ""}`;
+
+  // Brytpunkten: värd att nämna om den passeras, och värd att nämna om den
+  // inte gör det, eftersom skiktgränsen växer snabbare än lönerna.
+  const by = brytpunktYear(s, years);
+
+  note.classList.remove("hidden");
+  const last = b[b.length - 1];
+  const derived = gross ? "" :
+    `<br><span class="muted">Nettolönen ${fmt(num(s.income.net))} motsvarar en bruttolön
+     på ca ${fmt(b[0].gross0)} vid ${pct(num(s.tax.kommun))} kommunalskatt. Löneökningen
+     läggs på bruttot och beskattas med marginalskatt – stämmer inte bruttot,
+     byt till <b>Räkna från bruttolön</b> och skriv in det själv.</span>`;
+  const endsAbove = last.statlig > 0;
+  if (by === 0 && !endsAbove) {
+    note.innerHTML = `<b>Du betalar statlig inkomstskatt idag, men växer ur den.</b>
+      Skiktgränsen skrivs upp med KPI + ${pct(num(s.tax.skiktIndexBonus))} per år,
+      alltså ${pct(num(s.invest.inflation) + num(s.tax.skiktIndexBonus))}, medan lönen
+      växer ${pct(num(s.invest.wageGrowth))}. Gränsen springer ifrån dig och
+      marginalskatten faller från ${pct(55.6)} till ${pct(32.6)}.
+      <span class="muted">Att gränsen indexeras snabbare än lönerna i trettio år
+      i sträck är ett antagande, inte en prognos – riksdagen har frusit
+      uppräkningen förr. Sätt <b>skiktIndexBonus</b> till 0 för att se det
+      utfallet.</span>${derived}`;
+  } else if (by === 0) {
+    note.innerHTML = `<b>Du betalar statlig inkomstskatt redan idag.</b>
+      Bara kronorna <em>över</em> skiktgränsen (${fmt(num(s.tax.skiktgrans) / 12)}/mån)
+      beskattas med ${pct(num(s.tax.statligPct))} extra – lönen under den är oberörd.
+      Marginalskatten är ${pct(55.6)} men effektiv skatt bara
+      ${pct(b[0].effective)}.${derived}`;
+  } else if (by === null) {
+    note.innerHTML = `<b>Du når aldrig statlig inkomstskatt i den här prognosen.</b>
+      Skiktgränsen skrivs upp med KPI + ${pct(num(s.tax.skiktIndexBonus))} per år
+      (${fmt(num(s.tax.skiktgrans))} i år), vilket är snabbare än
+      ${pct(num(s.invest.wageGrowth))} löneökning. Ändra
+      <b>skiktIndexBonus</b> i skatteparametrarna om du tror annat.${derived}`;
+  } else {
+    note.innerHTML = `<b>Statlig inkomstskatt slår till efter ca ${by} år.</b>
+      Därefter beskattas bara kronorna <em>över</em> skiktgränsen med
+      ${pct(num(s.tax.statligPct))} extra – lönen under den är oberörd. Det är
+      därför marginalskatten hoppar men effektiv skatt bara kryper, från
+      ${pct(b[0].effective)} till ${pct(last.effective)}.${derived}`;
+  }
+}
+
+/**
+ * Ett litet diagram per sparande- och investeringsrad.
+ *
+ * Kurvan är radens faktiska utveckling ur simuleringen, vilket betyder att
+ * pengar som styrs om hit från en annan rad redan ligger i den – man ser
+ * kurvan svänga uppåt den månad t.ex. bufferten blir full och börjar mata hit.
+ *
+ * Rader med mål zoomas in på tiden fram till målet, annars skulle den
+ * intressanta delen tryckas ihop i vänsterkanten av en trettioårig axel.
+ * Beloppen är nominella: ett mål på 100 000 kr betyder 100 000 faktiska kronor.
+ */
+function renderGoalCharts(proj, s) {
+  const host = $("goalCharts");
+  host.innerHTML = "";
+  if (!proj.per.length) {
+    host.innerHTML = `<p class="muted">Inga sparande- eller investeringsrader att följa.</p>`;
+    return;
+  }
+  proj.per.forEach(p => host.appendChild(goalCard(p, proj)));
+}
+
+function goalCard(p, proj) {
+  const row = p.row;
+  const goal = Math.max(0, num(row.goal));
+  const reached = goal > 0 ? p.goalMonth : null;
+  const colour = KINDS[row.kind].color;
+
+  // Fönster: fram till målet med lite luft, annars hela horisonten.
+  const months = reached
+    ? Math.min(proj.months, Math.max(12, Math.ceil(reached * 1.15)))
+    : proj.months;
+  const pts = p.series.slice(0, months + 1);
+  const last = pts[pts.length - 1];
+
+  const inflow = m => m <= 0 ? 0 : (p.series[m].contrib - p.series[m - 1].contrib);
+  const inflowNow = inflow(1), inflowEnd = inflow(months);
+
+  const card = document.createElement("div");
+  card.className = "goal-card";
+
+  const status = goal > 0
+    ? (reached
+        ? `<span class="goal-hit">Nås år ${(reached / 12).toFixed(1).replace(".", ",")}</span>`
+        : `<span class="goal-miss">Nås inte inom ${Math.round(proj.months / 12)} år</span>`)
+    : `<span>${fmtK(last.value)} efter ${Math.round(months / 12)} år</span>`;
+
+  card.innerHTML = `
+    <div class="goal-head">
+      <span class="dot" style="background:${colour}"></span>
+      <b>${esc(row.label)}</b>
+      <span class="muted">${ACCOUNTS[row.account] || ""}</span>
+    </div>
+    <div class="goal-status">${status}</div>`;
+
+  // ---------- diagram
+  const W = 300, H = 116, padL = 46, padR = 12, padT = 12, padB = 18;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": `Utveckling för ${row.label}` });
+  const maxV = Math.max(1, last.value, goal * 1.06);
+  const x = m => padL + (m / Math.max(1, months)) * (W - padL - padR);
+  const y = v => H - padB - (v / maxV) * (H - padT - padB);
+
+  niceTicks(maxV, 2).forEach(t => {
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y(t), y2: y(t),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const lb = svgEl("text", { x: padL - 6, y: y(t) + 3, class: "tick", "text-anchor": "end" });
+    lb.textContent = t >= 1e6 ? (t / 1e6).toLocaleString(CUR.locale, { maximumFractionDigits: 1 }) + "M"
+                   : t >= 1e3 ? Math.round(t / 1e3) + "k" : Math.round(t);
+    svg.appendChild(lb);
+  });
+
+  const yrs = months / 12;
+  const step = yrs <= 3 ? 1 : yrs <= 10 ? 2 : yrs <= 25 ? 5 : 10;
+  for (let yr = 0; yr <= yrs + 0.01; yr += step) {
+    const lb = svgEl("text", { x: x(yr * 12), y: H - 6, class: "tick", "text-anchor": "middle" });
+    lb.textContent = yr;
+    svg.appendChild(lb);
+  }
+  const xUnit = svgEl("text", { x: W - padR, y: H - 6, class: "tick", "text-anchor": "end" });
+  xUnit.textContent = "år";
+  svg.appendChild(xUnit);
+
+  // Mållinje som referens, i textfärg – den är en annotering, inte data.
+  if (goal > 0 && goal <= maxV) {
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y(goal), y2: y(goal),
+      stroke: "var(--ink-3)", "stroke-width": 1 }));
+    const gl = svgEl("text", { x: W - padR, y: y(goal) - 4, class: "tick", "text-anchor": "end" });
+    gl.textContent = "Mål " + fmtK(goal);
+    svg.appendChild(gl);
+  }
+
+  const step2 = Math.max(1, Math.round(pts.length / 90));
+  const line = pts.filter((_, i) => i % step2 === 0 || i === pts.length - 1);
+  svg.appendChild(svgEl("path", {
+    d: "M" + line.map(q => `${x(q.m)},${y(q.value)}`).join(" L"),
+    fill: "none", stroke: colour, "stroke-width": 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+  // Markör där målet nås
+  if (reached && reached <= months) {
+    svg.appendChild(svgEl("line", { x1: x(reached), x2: x(reached), y1: y(goal), y2: H - padB,
+      stroke: "var(--ink-3)", "stroke-width": 1, opacity: 0.5 }));
+    svg.appendChild(svgEl("circle", { cx: x(reached), cy: y(goal), r: 4,
+      fill: colour, stroke: "var(--surface-1)", "stroke-width": 2 }));
+  } else {
+    svg.appendChild(svgEl("circle", { cx: x(last.m), cy: y(last.value), r: 4,
+      fill: colour, stroke: "var(--surface-1)", "stroke-width": 2 }));
+  }
+
+  // hover
+  const cross = svgEl("line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
+    "stroke-width": 1, opacity: 0 });
+  svg.appendChild(cross);
+  const hit = svgEl("rect", { x: padL, y: padT, width: W - padL - padR,
+    height: H - padT - padB, fill: "transparent" });
+  hit.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const rel = (ev.clientX - box.left) / box.width * W;
+    const m = Math.max(0, Math.min(months, Math.round((rel - padL) / (W - padL - padR) * months)));
+    const q = p.series[m]; if (!q) return;
+    cross.setAttribute("x1", x(m)); cross.setAttribute("x2", x(m)); cross.setAttribute("opacity", 1);
+    showTip(
+      `<div class="tt-title">${esc(row.label)} · år ${(m / 12).toFixed(1).replace(".", ",")}</div>
+       <div class="tt-row"><span><i style="background:${colour}"></i>Värde</span><b>${fmt(q.value)}</b></div>
+       <div class="tt-row"><span>Insatt</span><b>${fmt(q.contrib)}</b></div>
+       <div class="tt-row"><span>Avkastning</span><b>${fmt(q.value - q.contrib)}</b></div>
+       <div class="tt-row" style="border-top:1px solid var(--grid);margin-top:4px;padding-top:4px">
+         <span>Insättning denna månad</span><b>${fmt(inflow(m))}</b></div>`, ev);
+  });
+  hit.addEventListener("mouseleave", () => { hideTip(); cross.setAttribute("opacity", 0); });
+  svg.appendChild(hit);
+  card.appendChild(svg);
+
+  // Inflödet är hela poängen med omdirigeringarna – säg det i klartext.
+  const foot = document.createElement("div");
+  foot.className = "goal-foot muted";
+  foot.textContent =
+      inflowEnd < 1 ? `Insättning ${fmt(inflowNow)}/mån · upphör när målet nås`
+    : Math.abs(inflowEnd - inflowNow) < 1 ? `Insättning ${fmt(inflowNow)}/mån`
+    : `Insättning ${fmt(inflowNow)} → ${fmt(inflowEnd)}/mån`;
+  card.appendChild(foot);
+
+  return card;
+}
+
+function renderPerRow(proj, s) {
+  if (!proj.per.length) { $("perRow").innerHTML = `<p class="muted">Inga sparanderader ännu.</p>`; return; }
+  const infl = num(s.invest.inflation) / 100;
+  const defl = m => s.invest.real ? Math.pow(1 + infl, -m / 12) : 1;
+  const idleEl = $("idleNote");
+  idleEl.classList.toggle("hidden", proj.idle <= 0);
+  if (proj.idle > 0) {
+    idleEl.innerHTML =
+      `<b>${fmt(proj.idle)}/mån hamnar ingenstans i slutet av prognosen.</b>
+       De raderna har nått sitt mål eller sin spartid, men ingen mottagare är vald –
+       pengarna lämnar fortfarande budgeten utan att synas i kurvan.
+       Öppna raden med <b>⋯</b> och välj vart beloppet ska ta vägen.`;
+  }
+
+  const byId = Object.fromEntries(s.rows.map(r => [r.id, r]));
+  $("perRow").innerHTML = `<table><thead><tr>
+      <th>Rad</th><th>Per mån</th><th>Avk.</th><th>Konto</th><th>Spartid</th>
+      <th>Mål</th><th>Slutvärde</th>
+    </tr></thead><tbody>
+    ${proj.per.map(p => {
+      const d = defl(proj.months);
+      const r = p.row;
+      let goalCell = "–";
+      if (num(r.goal) > 0) {
+        goalCell = p.goalMonth
+          ? `${fmt(num(r.goal))} <span class="muted">nås år ${(p.goalMonth / 12).toFixed(1).replace(".", ",")}</span>`
+          : `${fmt(num(r.goal))} <span class="muted">nås ej</span>`;
+      }
+      const dests = normalizeRedirect(r.redirect)
+        .map(d => d.to === SELF ? `stannar här ${Math.round(num(d.pct))} %`
+              : byId[d.to] ? `${esc(byId[d.to].label)} ${Math.round(num(d.pct))} %` : null)
+        .filter(Boolean);
+      return `<tr>
+        <td>${esc(r.label)}${dests.length
+          ? `<br><span class="muted">→ ${dests.join(" · ")}</span>` : ""}</td>
+        <td>${fmt(num(r.amount))}</td>
+        <td>${pct(num(r.ret))}</td>
+        <td>${ACCOUNTS[r.account] || "–"}</td>
+        <td>${num(r.years) > 0 ? num(r.years) + " år" : "–"}</td>
+        <td>${goalCell}</td>
+        <td>${fmt(p.value * d)}</td></tr>`;
+    }).join("")}
+    </tbody></table>`;
+}
+
+const TAX_FIELDS_BY_COUNTRY = {
+  se: [
+    ["pbb", "Prisbasbelopp"], ["skiktgrans", "Skiktgräns statlig skatt"],
+    ["statligPct", "Statlig skatt (%)"], ["kommun", "Kommunalskatt (%)"],
+    ["church", "Kyrkoavgift (%)"], ["begravning", "Begravningsavgift (%)"],
+    ["jsaTaperFrom", "Jobbskatteavdrag trappas av från"], ["jsaTaperPct", "Avtrappning (%)"],
+    ["slr", "Statslåneränta (%)"], ["iskFribelopp", "Fribelopp ISK/KF"],
+    ["kapitalskatt", "Kapitalskatt (%)"], ["fondSchablon", "Fondschablon depå (%)"],
+    ["skiktIndexBonus", "Skiktgräns skrivs upp med KPI + (pe)"],
+    ["indexFribelopp", "Indexera ISK-fribeloppet (1/0)"]
+  ],
+  de: [
+    ["grundfreibetrag", "Grundfreibetrag"], ["z2end", "Zon 2 slutar vid"],
+    ["z3end", "Zon 3 slutar vid"], ["z4end", "Zon 4 slutar vid"],
+    ["z4rate", "Spitzensteuersatz (%)"], ["z5rate", "Reichensteuer (%)"],
+    ["rv", "Rentenversicherung, anställd (%)"], ["rvBBG", "BBG pension/a-kassa"],
+    ["av", "Arbeitslosenversicherung (%)"],
+    ["kv", "Krankenversicherung (%)"], ["kvBBG", "BBG sjuk/vård"],
+    ["pv", "Pflegeversicherung (%)"],
+    ["soli", "Solidaritätszuschlag (%)"], ["soliFreigrenze", "Soli-Freigrenze"],
+    ["kirche", "Kirchensteuer (%), 0 om ej medlem"],
+    ["werbungskosten", "Werbungskostenpauschale"],
+    ["kapitalskatt", "Abgeltungsteuer (%)"], ["sparerPauschbetrag", "Sparer-Pauschbetrag"],
+    ["teilfreistellung", "Teilfreistellung aktiefonder (%)"],
+    ["rvTotal", "Pensionsavgift totalt (%)"],
+    ["inflationIndex", "Indexera trösklar med KPI (1/0)"]
+  ],
+  at: [
+    ["sv", "Sozialversicherung, löpande (%)"], ["svSZ", "SV på 13:e/14:e (%)"],
+    ["hbgl", "Höchstbeitragsgrundlage/mån"],
+    ["szFrei", "Skattefritt på sonstige Bezüge"], ["szRate", "Skatt på 13:e/14:e (%)"],
+    ["verkehrsabsetz", "Verkehrsabsetzbetrag/år"],
+    ["kirche", "Kirchenbeitrag (%)"],
+    ["kapitalskatt", "KESt (%)"], ["pvTotal", "Pensionsavgift totalt (%)"],
+    ["inflationIndex", "Indexera trösklar med KPI (1/0)"]
+  ]
+};
+
+function renderTaxParams() {
+  const host = $("taxParams"), code = cur().country || "se";
+  const fields = TAX_FIELDS_BY_COUNTRY[code];
+
+  // Byggs om bara när landet byts. Annars uppdateras värdena på plats –
+  // en ombyggnad skulle sparka ut markören ur fältet man skriver i.
+  if (host.dataset.built !== code) {
+    host.innerHTML = "";
+    fields.forEach(([k, label]) => {
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `<label for="tp-${k}">${label}</label>
+        <input type="number" id="tp-${k}" step="0.01">`;
+      f.querySelector("input").oninput = e => {
+        cur().tax[k] = num(e.target.value);   // läs scenariot vid anropet, inte vid bygget
+        save(); renderIncome(); refreshRowStats(); renderOutputs();
+      };
+      host.appendChild(f);
+    });
+    host.dataset.built = code;
+  }
+  fields.forEach(([k]) => setVal($("tp-" + k), cur().tax[k]));
+  $("taxParamsTitle").textContent = `Skatteparametrar 2026 – ${COUNTRIES[code].name}`;
+  $("atBracketNote").classList.toggle("hidden", code !== "at");
+}
+
+/** Visar modellens utfall vid de publicerade referenslönerna, så drift syns. */
+function renderTaxCheck(s) {
+  if (s.country !== "se") {
+    const g = s.country === "de" ? 5000 : 4000;
+    const r = countryNet(g, s.tax, false);
+    $("taxCheck").innerHTML =
+      `<b>Modellkontroll</b><br>
+       ${fmt(g)}/mån brutto → netto <b>${fmt(r.net)}</b>/mån,
+       socialavgift ${fmt(r.social / 12)}/mån, skatt ${fmt(r.tax / 12)}/mån,
+       effektivt ${pct(r.effective)}${s.country === "at"
+         ? ` <span class="muted">(14 löner – 13:e och 14:e ger
+             ${fmt(r.szNet)} netto tillsammans)</span>` : ""}<br>
+       <span class="muted">Stäm av mot en officiell brutto-netto-räknare innan du
+       litar på siffran. Den här motorn är beta och har inte samma
+       verifieringsgrad som den svenska.</span>`;
+    return;
+  }
+  const T = { ...s.tax, kommun: 32.38, church: 0 };
+  const a = countryNet(38800, T, false), b = countryNet(44600, T, false);
+  $("taxCheck").innerHTML =
+    `<b>Modellkontroll</b> (riksgenomsnittlig kommunalskatt 32,38 %, ej kyrkomedlem)<br>
+     38 800 kr/mån → netto <b>${fmt(a.net)}</b>, jobbskatteavdrag ${fmt(a.jsa / 12)}/mån
+     <span class="muted">(publicerat: 4 278 kr)</span><br>
+     44 600 kr/mån → netto <b>${fmt(b.net)}</b>, jobbskatteavdrag ${fmt(b.jsa / 12)}/mån
+     <span class="muted">(publicerat: 4 366 kr)</span><br>
+     <span class="muted">Jobbskatteavdragets koefficienter är bakåtberäknade ur publicerade
+     summeringar, inte hämtade ur lagtexten. Behandla nettot som en uppskattning –
+     Skatteverkets egen räknesnurra är facit.</span>`;
+}
+
+/* ====================================================================
+   Jämför scenarier
+   ==================================================================== */
+
+const COMPARE_MAX = 4;
+
+/** Valda scenarier, rensade från sådana som tagits bort. */
+function compareSelection() {
+  if (!Array.isArray(store.compare)) {
+    store.compare = Object.keys(store.scenarios).slice(0, COMPARE_MAX);
+  }
+  store.compare = store.compare.filter(id => store.scenarios[id]).slice(0, COMPARE_MAX);
+  return store.compare;
+}
+
+const compareColor = i => cssVar(`--series-${i + 1}`);
+
+/**
+ * Räknar om ett scenario med den aktiva budgetens vy-inställningar, så att
+ * alla kurvor delar horisont och penningvärde. Utan det jämför man äpplen
+ * och päron: ett scenario satt till 20 år i dagens penningvärde mot ett
+ * satt till 30 år nominellt säger ingenting.
+ */
+function comparableProjection(sc, years, view) {
+  return projectAll({ ...sc, invest: { ...sc.invest,
+    horizon: years, real: view.real, inflation: view.inflation } });
+}
+
+function renderCompare() {
+  const ids = compareSelection();
+  const act = cur();
+  const view = { real: !!act.invest.real, inflation: num(act.invest.inflation) };
+  const all = Object.values(store.scenarios).sort((a, b) => a.name.localeCompare(b.name, "sv"));
+
+  // ---------- väljare
+  $("comparePick").innerHTML = all.map(sc => {
+    const i = ids.indexOf(sc.id), on = i >= 0;
+    const full = !on && ids.length >= COMPARE_MAX;
+    return `<label${full ? ' style="opacity:.45"' : ""}>
+      <input type="checkbox" data-cmp="${sc.id}" ${on ? "checked" : ""} ${full ? "disabled" : ""}>
+      <span class="key" style="background:${on ? compareColor(i) : "var(--axis)"}"></span>
+      ${esc(sc.name)}</label>`;
+  }).join("");
+  $("comparePick").querySelectorAll("[data-cmp]").forEach(cb => {
+    cb.onchange = e => {
+      const id = e.target.dataset.cmp;
+      store.compare = e.target.checked
+        ? [...compareSelection(), id].slice(0, COMPARE_MAX)
+        : compareSelection().filter(x => x !== id);
+      save(); renderCompare();
+    };
+  });
+
+  const svg = $("chartCompare"), hint = $("compareHint");
+  const picked = ids.map(id => store.scenarios[id]);
+
+  if (all.length < 2) {
+    hint.classList.remove("hidden");
+    hint.textContent = "Skapa en till budget med + Ny för att kunna jämföra. "
+      + "Duplicera är oftast enklast – ändra sedan det du vill testa.";
+    svg.innerHTML = ""; svg.removeAttribute("height");
+    $("legendCompare").innerHTML = ""; $("compareTable").innerHTML = "";
+    return;
+  }
+  if (!picked.length) {
+    hint.classList.remove("hidden");
+    hint.textContent = "Kryssa i minst ett scenario ovan.";
+    svg.innerHTML = ""; svg.removeAttribute("height");
+    $("legendCompare").innerHTML = ""; $("compareTable").innerHTML = "";
+    return;
+  }
+  hint.classList.add("hidden");
+
+  // Gemensam horisont: den längsta bland de valda. resolveHorizon används i
+  // stället för det lagrade värdet, som är inaktuellt för scenarier man inte
+  // har haft framme sedan raderna ändrades.
+  const years = Math.max(...picked.map(resolveHorizon));
+
+  // Scenarier i olika valutor går inte att lägga i samma diagram – kurvorna
+  // skulle ritas mot samma axel utan växelkurs. Säg till i stället.
+  const currencies = [...new Set(picked.map(sc => COUNTRIES[sc.country || "se"].cur))];
+  if (currencies.length > 1) {
+    hint.classList.remove("hidden");
+    hint.innerHTML = `<b>De valda budgetarna använder olika valutor (${currencies.join(", ")}).</b>
+      Appen räknar inte om mellan valutor, så kurvorna skulle jämföra
+      osammanhängande tal. Välj scenarier i samma valuta, eller lägg in
+      beloppen i en gemensam valuta i båda.`;
+    $("chartCompare").innerHTML = ""; $("chartCompare").removeAttribute("height");
+    $("legendCompare").innerHTML = ""; $("compareTable").innerHTML = "";
+    return;
+  }
+  const runs = picked.map((sc, i) => ({
+    sc, i, color: compareColor(i),
+    sum: summary(sc),
+    proj: comparableProjection(sc, years, view)
+  }));
+
+  $("compareCaption").textContent =
+    `Portföljvärde över ${years} år, ${view.real
+      ? `i dagens penningvärde (${pct(view.inflation)} inflation)` : "nominella kronor"}`
+    + " – samma horisont för alla, hämtad från den längsta budgeten";
+
+  drawCompareChart(runs, years);
+  drawCompareTable(runs, years);
+}
+
+function drawCompareChart(runs, years) {
+  const svg = $("chartCompare");
+  svg.innerHTML = "";
+  const months = years * 12;
+  const maxV = Math.max(1, ...runs.map(r => Math.max(...r.proj.series.map(p => p.value))));
+
+  const W = 900, H = 300, padL = 62, padR = 132, padT = 12, padB = 28;
+  const x = m => padL + (m / months) * (W - padL - padR);
+  const y = v => H - padB - (v / maxV) * (H - padT - padB);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+
+  niceTicks(maxV, 4).forEach(t => {
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y(t), y2: y(t),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const lb = svgEl("text", { x: padL - 8, y: y(t) + 3, class: "tick", "text-anchor": "end" });
+    lb.textContent = t >= 1e6 ? (t / 1e6).toLocaleString("sv-SE", { maximumFractionDigits: 1 }) + "M"
+                   : t >= 1e3 ? Math.round(t / 1e3) + "k" : Math.round(t);
+    svg.appendChild(lb);
+  });
+  const stepY = years <= 10 ? 2 : years <= 25 ? 5 : 10;
+  for (let yr = 0; yr <= years; yr += stepY) {
+    const lb = svgEl("text", { x: x(yr * 12), y: H - 8, class: "tick", "text-anchor": "middle" });
+    lb.textContent = yr + " år";
+    svg.appendChild(lb);
+  }
+
+  runs.forEach(r => {
+    const pts = r.proj.series.filter((_, i) => i % 3 === 0 || i === r.proj.series.length - 1);
+    svg.appendChild(svgEl("path", {
+      d: "M" + pts.map(p => `${x(p.m)},${y(p.value)}`).join(" L"),
+      fill: "none", stroke: r.color, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const last = r.proj.series[r.proj.series.length - 1];
+    r.endY = y(last.value); r.endV = last.value;
+    svg.appendChild(svgEl("circle", { cx: x(last.m), cy: r.endY, r: 4,
+      fill: r.color, stroke: "var(--surface-1)", "stroke-width": 2 }));
+  });
+
+  // Direktetiketter vid linjeslutet, men bara där de får plats. Kolliderande
+  // etiketter hoppas över i stället för att knuffas isär – legenden och
+  // tabellen bär identiteten ändå.
+  const placed = [];
+  runs.slice().sort((a, b) => a.endY - b.endY).forEach(r => {
+    if (placed.some(p => Math.abs(p - r.endY) < 13)) return;
+    placed.push(r.endY);
+    const lb = svgEl("text", { x: x(months) + 10, y: r.endY + 4, class: "barlabel" });
+    lb.textContent = fmtK(r.endV);
+    svg.appendChild(lb);
+  });
+
+  // hover: hårkors med alla scenarier samtidigt
+  const cross = svgEl("line", { y1: padT, y2: H - padB, stroke: "var(--axis)",
+    "stroke-width": 1, opacity: 0 });
+  svg.appendChild(cross);
+  const dots = runs.map(r => {
+    const d = svgEl("circle", { r: 4, fill: r.color, stroke: "var(--surface-1)",
+      "stroke-width": 2, opacity: 0 });
+    svg.appendChild(d); return d;
+  });
+  const hit = svgEl("rect", { x: padL, y: padT, width: W - padL - padR,
+    height: H - padT - padB, fill: "transparent" });
+  hit.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const rel = (ev.clientX - box.left) / box.width * W;
+    const m = Math.max(0, Math.min(months, Math.round((rel - padL) / (W - padL - padR) * months)));
+    cross.setAttribute("x1", x(m)); cross.setAttribute("x2", x(m)); cross.setAttribute("opacity", 1);
+    const rows = runs.map((r, i) => {
+      const p = r.proj.series[m];
+      dots[i].setAttribute("cx", x(m));
+      dots[i].setAttribute("cy", y(p ? p.value : 0));
+      dots[i].setAttribute("opacity", 1);
+      return `<div class="tt-row"><span><i style="background:${r.color}"></i>${esc(r.sc.name)}</span>
+              <b>${fmt(p ? p.value : 0)}</b></div>`;
+    }).join("");
+    showTip(`<div class="tt-title">År ${(m / 12).toFixed(1).replace(".", ",")}</div>${rows}`, ev);
+  });
+  hit.addEventListener("mouseleave", () => {
+    hideTip(); cross.setAttribute("opacity", 0);
+    dots.forEach(d => d.setAttribute("opacity", 0));
+  });
+  svg.appendChild(hit);
+
+  $("legendCompare").innerHTML = runs.map(r =>
+    `<span><i style="background:${r.color}"></i>${esc(r.sc.name)}</span>`).join("");
+}
+
+function drawCompareTable(runs, years) {
+  const base = runs[0];
+  const delta = (v, b) => {
+    if (runs.length < 2 || v === b) return "";
+    const d = v - b;
+    const col = d > 0 ? "var(--good)" : "var(--critical)";
+    return `<br><span style="color:${col};font-size:11px">${d > 0 ? "+" : "−"}${fmtK(Math.abs(d))}</span>`;
+  };
+  const row = (label, get, fmtFn, withDelta) => `<tr>
+    <td>${label}</td>${runs.map(r => {
+      const v = get(r);
+      return `<td>${fmtFn(v)}${withDelta ? delta(v, get(base)) : ""}</td>`;
+    }).join("")}</tr>`;
+
+  $("compareTable").innerHTML = `<table><thead><tr><th>Nyckeltal</th>
+    ${runs.map(r => `<th><span style="display:inline-flex;align-items:center;gap:6px">
+      <i style="width:10px;height:10px;border-radius:3px;background:${r.color};display:inline-block"></i>
+      ${esc(r.sc.name)}</span></th>`).join("")}</tr></thead><tbody>
+    ${row("Inkomst/mån",        r => r.sum.income,      fmt,  false)}
+    ${row("Utgifter/mån",       r => r.sum.consumption, fmt,  false)}
+    ${row("Sparande/mån",       r => r.sum.saved,       fmt,  false)}
+    ${row("Kvar att leva på",   r => r.sum.left,        fmt,  false)}
+    ${row("Sparkvot",           r => r.sum.rate,        pct,  false)}
+    ${row("Insatt kapital",     r => r.proj.contrib,    fmtK, false)}
+    ${row("Kapitalskatt",       r => r.proj.tax,        fmtK, false)}
+    ${row("Likvida medel",      r => r.proj.cash,       fmtK, false)}
+    ${row(`Slutvärde år ${years}`, r => r.proj.total,   fmtK, true)}
+    </tbody></table>
+    ${runs.length > 1 ? `<p class="muted" style="margin-top:8px">
+      Skillnaden på sista raden är mot <b>${esc(base.sc.name)}</b>.</p>` : ""}`;
+}
+
+/* ====================================================================
+   7. Export / import
+   ==================================================================== */
+
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const slug = str => str.toLowerCase().replace(/[^a-z0-9åäö]+/gi, "-").replace(/^-|-$/g, "") || "budget";
+
+function exportJson() {
+  download(`${slug(cur().name)}.json`, JSON.stringify(cur(), null, 2), "application/json");
+}
+
+function exportCsv() {
+  const s = cur();
+  s.invest.horizon = resolveHorizon(s);
+  const sum = summary(s), proj = projectAll(s), fb = futureBudget(s, s.invest.horizon);
+  const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const COLS = 13;
+  const pad = a => { const r = a.slice(); while (r.length < COLS) r.push(""); return r.map(q).join(","); };
+  const L = [];
+  L.push(pad(["sektion", "namn", "typ", "belopp_per_man", "avkastning_pct", "konto",
+              "befintligt_kapital", "spartid_ar", "mal", "styr_om_till",
+              "vaxer_med_lonen", "slutvarde", "varav_avkastning"]));
+
+  const salary = s.income.mode === "gross"
+    ? countryNet(num(s.income.gross), s.tax, s.income.age66).net
+    : num(s.income.net);
+  L.push(pad(["inkomst", s.income.mode === "gross" ? "Nettolön (beräknad från brutto)" : "Nettolön",
+              "netto", Math.round(salary)]));
+  s.income.extra.forEach(r =>
+    L.push(pad(["inkomst", r.label, "netto", Math.round(num(r.amount))])));
+
+  const byId = Object.fromEntries(proj.per.map(p => [p.row.id, p]));
+  const rowById = Object.fromEntries(s.rows.map(r => [r.id, r]));
+  const defl = s.invest.real ? Math.pow(1 + num(s.invest.inflation) / 100, -proj.months / 12) : 1;
+  s.rows.forEach(r => {
+    const p = byId[r.id], inv = r.kind !== "consumption";
+    const dests = normalizeRedirect(r.redirect)
+      .map(d => d.to === SELF ? `(stannar) ${Math.round(num(d.pct))}%`
+            : rowById[d.to] ? `${rowById[d.to].label} ${Math.round(num(d.pct))}%` : null)
+      .filter(Boolean).join(" | ");
+    L.push(pad(["rad", r.label, KINDS[r.kind].label, Math.round(num(r.amount)),
+      inv ? num(r.ret) : "", inv ? (ACCOUNTS[r.account] || "") : "",
+      inv ? Math.round(num(r.start)) : "",
+      inv ? num(r.years) : "",
+      inv && num(r.goal) > 0 ? Math.round(num(r.goal)) : "",
+      inv ? dests : "",
+      r.grows === false ? "nej" : "ja",
+      p ? Math.round(p.value * defl) : "",
+      p ? Math.round(p.growth * defl) : ""]));
+  });
+
+  L.push("");
+  L.push(pad(["summering", "nyckeltal", "", "varde"]));
+  [["Total inkomst", sum.income], ["Utgifter", sum.consumption],
+   ["Sparande + investering", sum.saved], ["Kvar", sum.left],
+   ["Sparkvot (%)", Math.round(sum.rate * 10) / 10],
+   [`Portföljvärde om ${s.invest.horizon} år`, Math.round(proj.total)],
+   ["Varav likvida medel", Math.round(proj.cash)],
+   ["Varav investerat", Math.round(proj.invested)],
+   ["Varav insatt", Math.round(proj.contrib)],
+   ["Varav avkastning", Math.round(proj.growth)],
+   ["Betald kapitalskatt", Math.round(proj.tax)],
+   ["Oallokerat vid horisontens slut (kr/mån)", Math.round(proj.idle)],
+   ["Löneökning (%/år nominellt)", s.invest.wageGrowthOn === false ? 0 : num(s.invest.wageGrowth)],
+   ["Inflation (%/år)", num(s.invest.inflation)],
+   [`Inkomst/mån om ${s.invest.horizon} år`, Math.round(fb.income)],
+   [`Sparande/mån om ${s.invest.horizon} år`, Math.round(fb.saved)],
+   [`Kvar/mån om ${s.invest.horizon} år`, Math.round(fb.left)]
+  ].forEach(([k, v]) => L.push(pad(["summering", k, "", v])));
+
+  L.push("");
+  L.push(pad(["prognos", "ar", "", "insatt", "avkastning", "totalt"]));
+  for (let yr = 0; yr <= Math.round(proj.months / 12); yr++) {
+    const p = proj.series[yr * 12]; if (!p) continue;
+    L.push(pad(["prognos", yr, "", Math.round(p.contrib), Math.round(p.growth), Math.round(p.value)]));
+  }
+  download(`${slug(s.name)}.csv`, "﻿" + L.join("\n"), "text/csv;charset=utf-8");
+}
+
+function importJson(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const o = JSON.parse(fr.result);
+      const list = o.scenarios ? Object.values(o.scenarios) : [o];
+      list.forEach(sc => {
+        if (!sc || !Array.isArray(sc.rows)) throw new Error("Filen ser inte ut som en budget.");
+        sc.id = uid();
+        sc.name = (sc.name || "Importerad") + " (importerad)";
+        sc.tax = { ...DEFAULT_TAX, ...(sc.tax || {}) };
+        sc.invest = { horizon: 20, inflation: 2, real: false, applyTax: true, ...(sc.invest || {}) };
+        store.scenarios[sc.id] = sc;
+        store.activeId = sc.id;
+      });
+      save(); renderAll();
+    } catch (e) { alert("Kunde inte läsa filen: " + e.message); }
+  };
+  fr.readAsText(file);
+}
+
+/* ====================================================================
+   8. Wiring
+   ==================================================================== */
+
+function renderAll() {
+  syncCountry(cur());
+  setVal($("countrySel"), cur().country);
+  const se = cur().country === "se";
+  ["kommunRow", "kommunPctRow", "churchMemberRow", "churchRow"]
+    .forEach(id => $(id).classList.toggle("hidden", !se));
+  renderScenarios(); renderIncome(); renderRows(); renderTaxParams(); renderOutputs();
+}
+
+buildKommunSelect();
+
+$("countrySel").innerHTML = Object.entries(COUNTRIES).map(([k, c]) =>
+  `<option value="${k}">${c.name}${c.beta ? " (beta)" : ""}</option>`).join("");
+$("countrySel").onchange = e => {
+  const s = cur(), code = e.target.value;
+  if (!confirm(`Byt land till ${COUNTRIES[code].name}?\n\n`
+    + `Beloppen räknas INTE om till ${COUNTRIES[code].cur} – siffrorna står kvar `
+    + `som de är och tolkas i den nya valutan. Kontotyper som saknas i `
+    + `${COUNTRIES[code].name} byts till närmaste motsvarighet.`)) {
+    e.target.value = s.country; return;
+  }
+  switchCountry(s, code);
+  openRow = null; save(); renderAll();
+};
+
+$("inPensionOn").onchange = e => { cur().pension.on = e.target.checked; save(); renderOutputs(); };
+
+$("scenarioSel").onchange = e => { store.activeId = e.target.value; openRow = null; save(); renderAll(); };
+$("btnNew").onclick = () => {
+  const n = prompt("Namn på den nya budgeten:", "Nytt scenario");
+  if (!n) return;
+  const sc = newScenario(n);
+  store.scenarios[sc.id] = sc; store.activeId = sc.id;
+  addToCompare(sc.id); save(); renderAll();
+};
+
+/** Nya budgetar hamnar direkt i jämförelsen – det är oftast därför man gör dem. */
+function addToCompare(id) {
+  const sel = compareSelection();
+  if (!sel.includes(id) && sel.length < COMPARE_MAX) store.compare = [...sel, id];
+}
+$("btnDup").onclick = () => {
+  const copy = JSON.parse(JSON.stringify(cur()));
+  copy.id = uid(); copy.name = cur().name + " (kopia)";
+  copy.rows.forEach(r => r.id = uid());
+  copy.income.extra.forEach(r => r.id = uid());
+  store.scenarios[copy.id] = copy; store.activeId = copy.id;
+  addToCompare(copy.id); save(); renderAll();
+};
+$("btnRen").onclick = () => {
+  const n = prompt("Nytt namn:", cur().name);
+  if (n) { cur().name = n; save(); renderScenarios(); renderCompare(); }
+};
+$("btnDel").onclick = () => {
+  if (Object.keys(store.scenarios).length < 2) { alert("Du måste ha minst en budget."); return; }
+  if (!confirm(`Ta bort "${cur().name}"? Det går inte att ångra.`)) return;
+  delete store.scenarios[store.activeId];
+  store.activeId = Object.keys(store.scenarios)[0];
+  save(); renderAll();
+};
+
+$("btnJson").onclick = exportJson;
+$("btnCsv").onclick  = exportCsv;
+$("btnImport").onclick = () => $("fileInput").click();
+$("fileInput").onchange = e => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; };
+
+$("btnTheme").onclick = () => {
+  const root = document.documentElement;
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const now = root.getAttribute("data-theme") || (dark ? "dark" : "light");
+  root.setAttribute("data-theme", now === "dark" ? "light" : "dark");
+  renderOutputs();   // charts read colours from CSS vars
+};
+
+/**
+ * Byte av inkomstläge måste rita om utgiftslistan också – procenttalen
+ * "av inkomst" bredvid varje rad räknas mot den valda inkomstkällan.
+ */
+function setIncomeMode(mode) {
+  cur().income.mode = mode; save();
+  renderIncome(); renderRows(); renderOutputs();
+}
+$("modeNet").onclick   = () => setIncomeMode("net");
+$("modeGross").onclick = () => setIncomeMode("gross");
+
+// Alla oninput-hanterare uppdaterar bara härledda tal – aldrig DOM-strukturen.
+// Annars byts fältet man skriver i ut mitt i inmatningen.
+$("inNet").oninput    = e => { cur().income.net = num(e.target.value); save(); refreshIncomeTotals(); refreshRowStats(); renderOutputs(); };
+$("inGross").oninput  = e => { cur().income.gross = num(e.target.value); save(); refreshIncomeTotals(); refreshRowStats(); renderOutputs(); };
+$("inKommun").oninput = e => {
+  cur().tax.kommun = num(e.target.value);
+  cur().tax.kommunKod = "";                    // manuell siffra: inte längre en vald kommun
+  setVal($("inKommunSel"), "");
+  $("kommunSrc").textContent = "– egen siffra";
+  save(); refreshIncomeTotals(); refreshRowStats(); renderTaxParams(); renderOutputs();
+};
+$("inChurch").oninput = e => { cur().tax.church = num(e.target.value); save(); refreshIncomeTotals(); refreshRowStats(); renderTaxParams(); renderOutputs(); };
+$("inAge66").onchange = e => { cur().income.age66 = e.target.checked; save(); renderIncome(); renderRows(); renderOutputs(); };
+
+/** Fyller select:en med alla 290 kommuner en gång. */
+function buildKommunSelect() {
+  const sel = $("inKommunSel");
+  sel.innerHTML = `<option value="">Riksgenomsnitt (${DEFAULT_TAX.kommun} %)</option>` +
+    KOMMUNER.map(([kod, namn, sats]) =>
+      `<option value="${kod}">${namn} – ${String(sats).replace(".", ",")} %</option>`).join("");
+}
+
+const lanAvgifter = kod => LAN_AVGIFTER[String(kod).slice(0, 2)] || RIKET_AVGIFTER;
+
+$("inKommunSel").onchange = e => {
+  const t = cur().tax, kod = e.target.value;
+  const member = num(t.church) > 0;
+  if (!kod) {
+    t.kommunKod = ""; t.kommun = DEFAULT_TAX.kommun;
+    t.begravning = RIKET_AVGIFTER[0];
+    if (member) t.church = RIKET_AVGIFTER[1];
+  } else {
+    const row = KOMMUNER.find(k => k[0] === kod);
+    if (row) { t.kommunKod = kod; t.kommun = row[2]; }
+    const [begr, kyrk] = lanAvgifter(kod);
+    t.begravning = begr;
+    if (member) t.church = kyrk;
+  }
+  // Ett aktivt val i listan ska alltid slå igenom, även om markören råkar
+  // stå kvar i procentfältet – därför direkt tilldelning, inte setVal.
+  $("inKommun").value = t.kommun;
+  save(); renderIncome(); refreshRowStats(); renderTaxParams(); renderOutputs();
+};
+
+$("inChurchMember").onchange = e => {
+  const t = cur().tax;
+  t.church = e.target.checked ? lanAvgifter(t.kommunKod)[1] : 0;
+  save(); renderIncome(); refreshRowStats(); renderTaxParams(); renderOutputs();
+};
+
+$("vizBars").onclick = () => { cur().viz = "bars"; save(); renderOutputs(); };
+$("vizFlow").onclick = () => { cur().viz = "flow"; save(); renderOutputs(); };
+
+$("btnAddIncome").onclick = () => {
+  cur().income.extra.push({ id: uid(), label: "Ny inkomst", amount: 0 });
+  save(); renderIncome();
+};
+
+document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+  const kind = b.dataset.add;
+  const defaults = { consumption: { ret: 0, account: "cash", label: "Ny utgift" },
+                     savings:     { ret: 2, account: "cash", label: "Nytt sparande" },
+                     investment:  { ret: 7, account: "isk",  label: "Ny investering" } }[kind];
+  const r = { id: uid(), label: defaults.label, amount: 0, kind,
+              ret: defaults.ret, years: 10, start: 0, account: defaults.account };
+  cur().rows.push(r); openRow = r.id; save(); renderRows(); renderOutputs();
+});
+
+$("btnResetRows").onclick = () => {
+  if (!confirm("Ersätt alla rader med standardmallen?")) return;
+  cur().rows = template(); openRow = null; save(); renderRows(); renderOutputs();
+};
+
+// Skriver man in ett eget antal år slutar horisonten följa spartiderna.
+$("inHorizon").oninput = e => {
+  cur().invest.horizon = num(e.target.value);
+  cur().invest.autoHorizon = false;
+  save(); renderOutputs();
+};
+$("btnAutoHorizon").onclick = () => {
+  const s = cur();
+  s.invest.autoHorizon = true;
+  s.invest.horizon = resolveHorizon(s);
+  $("inHorizon").value = s.invest.horizon;   // uttryckligt val slår setVal-spärren
+  save(); renderOutputs();
+};
+$("inInflation").oninput = e => {
+  cur().invest.inflation = num(e.target.value); save(); renderOutputs();
+};
+$("inWageGrowth").oninput = e => {
+  cur().invest.wageGrowth = num(e.target.value); save(); renderOutputs();
+};
+$("inWageOn").onchange = e => {
+  cur().invest.wageGrowthOn = e.target.checked; save(); renderOutputs();
+};
+$("wagePresets").querySelectorAll("[data-wage]").forEach(b => b.onclick = () => {
+  cur().invest.wageGrowth = num(b.dataset.wage);
+  cur().invest.wageGrowthOn = true;
+  $("inWageGrowth").value = b.dataset.wage;   // uttryckligt val slår setVal-spärren
+  save(); renderOutputs();
+});
+$("inReal").onchange = e => { cur().invest.real = e.target.checked; save(); renderOutputs(); };
+$("inTax").onchange  = e => { cur().invest.applyTax = e.target.checked; save(); renderOutputs(); };
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderOutputs());
+addEventListener("resize", () => renderOutputs());
+
+// Testa lagringen direkt vid start, så varningen syns innan något hinner tappas.
+try { localStorage.setItem(STORE_KEY + "-probe", "1"); localStorage.removeItem(STORE_KEY + "-probe"); }
+catch (e) { storageBroken = true; renderStorageWarning(); }
+
+renderAll();
+</script>
+</body>
+</html>
